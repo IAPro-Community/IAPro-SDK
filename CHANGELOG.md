@@ -8,3 +8,7 @@
 
 - Extração de provider specs e goldens, descoberta de executáveis, parsing de quotas Claude/Gemini, coordenação tipada, transições de capacidade e modelos HUD.
 - Gate de fallback conservador com testes; não executa handoff nem transfere sessões.
+
+- Corrigir fixture OpenCode: revisão nativa continua não verificada, sem flag obsoleta.
+- Classificação HTTP tipada e gate de fallback de cadeia explícita para consumidores.
+- CI publica metadados Go da revisão imutável para integração dos consumidores.
