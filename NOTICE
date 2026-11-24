@@ -1,0 +1,11 @@
+IAPro SDK — source provenance
+
+Initial Go slice derives from IAPro Nexus, Copyright (c) 2026 IAPro, MIT.
+Source: https://github.com/IAPro-Community/nexus/tree/ab1efac2c80dddb7b3aa60016baf1d4791bc3203
+
+- model/types.go: internal/core/model/types.go (subset: account scope, provider, usage, capabilities, failure).
+- classifier/classifier.go and classifier_test.go: internal/core/classifier/* (import paths).
+- quota/eligibility.go, eligibility_test.go, view.go, view_builder.go: internal/core/quota/* (import paths).
+- quota/render.go: RenderProgressBar and formatProgressLabel from internal/core/quota/quota.go (isolated with stdlib imports).
+
+Original license reproduced in LICENSE. No Calango AGPL code imported. Source file history checked for initial classifier/model slice; broader attribution and legal gate remain open (Nexus #74). No release or relicensing implied. Future ports must update this inventory and preserve all required notices.
