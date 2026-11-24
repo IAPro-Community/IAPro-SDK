@@ -22,7 +22,10 @@ jobs:
       - if: runner.os == 'Linux'
         run: go test -race ./... -count=1
       - if: runner.os == 'Linux'
-        run: test -z "$(gofmt -l .)"
+        run: |
+          unformatted="$(gofmt -l .)"
+          printf "%s\n" "$unformatted"
+          test -z "$unformatted"
   consumer-pin:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
