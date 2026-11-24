@@ -12,3 +12,5 @@
 - Corrigir fixture OpenCode: revisão nativa continua não verificada, sem flag obsoleta.
 - Classificação HTTP tipada e gate de fallback de cadeia explícita para consumidores.
 - CI publica metadados Go da revisão imutável para integração dos consumidores.
+
+- Endurecer fallback: identidade da evidência de quota, grupo/modelo explícitos, janelas válidas e proteção contra overflow no retry.

@@ -84,3 +84,20 @@ func TestClassifyFailures(t *testing.T) {
 		})
 	}
 }
+
+func TestRetryDurationBounds(t *testing.T) {
+	for _, input := range []string{
+		"retry in 9223372036854775807 seconds",
+		"retry in 9999999999999999999999999 minutes",
+		"retry in 3000000 hours",
+		"retry in 5 milliseconds",
+		"retry in 0 seconds",
+	} {
+		if got := ExtractRetryDuration(input); got != 0 {
+			t.Errorf("%q: invalid retry returned %v", input, got)
+		}
+	}
+	if got := ExtractRetryDuration("retry in 2 hours"); got != 2*time.Hour {
+		t.Errorf("valid retry returned %v", got)
+	}
+}

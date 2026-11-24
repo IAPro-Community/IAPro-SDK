@@ -15,11 +15,11 @@ func TestSelectFallback(t *testing.T) {
 	target := model.AccountScope{ProviderID: "codex", ProfileID: "b", AccountID: "2", IdentityVersion: "v1"}
 	req := SwitchRequest{OwnerID: "owner", Source: source, AllowSwitch: true, BeforeDispatch: true, Now: now}
 	c := Account{
-		OwnerID: "owner", Scope: target, Authorized: true, TermsPermit: true, ModelCompatible: true,
+		OwnerID: "owner", Scope: target, Authorized: true, TermsPermit: true, ModelCompatible: true, QuotaScope: target, Model: "gpt-test", GroupMapped: true,
 		ExpiresAt: now.Add(time.Minute),
 		Eligibility: quota.EligibilityInput{Authenticated: true, Health: "healthy", View: quota.QuotaView{
 			Provider: "codex", Profile: "b", Status: "LIVE", FetchedAt: now, Available: true,
-			ModelGroups: []quota.ModelGroup{{Windows: []quota.Window{{Kind: "5h", Remaining: 50}}}},
+			ModelGroups: []quota.ModelGroup{{Windows: []quota.Window{{Kind: "5h", Remaining: 50, Status: "LIVE"}}}},
 		}},
 	}
 	if got, err := SelectFallback(req, []Account{c}); err != nil || got.Scope != target {
@@ -38,6 +38,10 @@ func TestSelectFallback(t *testing.T) {
 		{"expired", func(a *Account) { a.ExpiresAt = now }},
 		{"unknown", func(a *Account) { a.Eligibility.View.Status = "UNKNOWN" }},
 		{"cooldown", func(a *Account) { a.Eligibility.InCooldown = true }},
+		{"wrong identity version", func(a *Account) { a.QuotaScope.IdentityVersion = "old" }},
+		{"wrong account evidence", func(a *Account) { a.QuotaScope.AccountID = "other" }},
+		{"unmapped model group", func(a *Account) { a.GroupMapped = false }},
+		{"different model group", func(a *Account) { a.QuotaGroup = "other" }},
 		{"wrong profile evidence", func(a *Account) { a.Eligibility.View.Profile = "a" }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -55,5 +59,28 @@ func TestSelectFallback(t *testing.T) {
 	req.Reconciled, req.NoOutput, req.NoSideEffects = true, true, true
 	if _, err := SelectFallback(req, []Account{c}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestModelPoolAvailability(t *testing.T) {
+	now := time.Now()
+	expired := now.Add(-time.Second)
+	good := quota.Window{Kind: "5h", Status: "LIVE", Remaining: 50}
+	bad := quota.Window{Kind: "weekly", Status: "LIVE", Remaining: 0}
+	v := quota.QuotaView{ModelGroups: []quota.ModelGroup{
+		{Key: "a", Windows: []quota.Window{bad}},
+		{Key: "b", Windows: []quota.Window{good}},
+	}}
+	if modelPoolAvailable(v, "a", now) || !modelPoolAvailable(v, "b", now) {
+		t.Fatal("unrelated group must not authorize selected pool")
+	}
+	v.ModelGroups = append(v.ModelGroups, quota.ModelGroup{Windows: []quota.Window{bad}})
+	if modelPoolAvailable(v, "b", now) {
+		t.Fatal("global exhausted quota must block model")
+	}
+	good.ResetTime = &expired
+	v.ModelGroups = []quota.ModelGroup{{Key: "b", Windows: []quota.Window{good}}}
+	if modelPoolAvailable(v, "b", now) {
+		t.Fatal("expired evidence must not authorize")
 	}
 }

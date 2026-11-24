@@ -2,6 +2,7 @@ package routing
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/IAPro-Community/IAPro-SDK/model"
@@ -22,6 +23,12 @@ type Account struct {
 	ModelCompatible bool
 	Paid            bool
 	ExpiresAt       time.Time
+
+	// QuotaScope is the identity bound to the observed quota, not the current login.
+	QuotaScope  model.AccountScope
+	Model       string
+	QuotaGroup  string
+	GroupMapped bool
 }
 
 // SwitchRequest describes a failed or unavailable source and the policy
@@ -50,7 +57,7 @@ func SelectFallback(req SwitchRequest, candidates []Account) (Account, error) {
 		return Account{}, ErrUnsafeSwitch
 	}
 	for _, c := range candidates {
-		if c.OwnerID != req.OwnerID || !c.Scope.Verifiable() || !c.Authorized || !c.TermsPermit || !c.ModelCompatible {
+		if c.OwnerID != req.OwnerID || !c.Scope.Verifiable() || !c.Authorized || !c.TermsPermit || !c.ModelCompatible || !c.GroupMapped || strings.TrimSpace(c.Model) == "" {
 			continue
 		}
 		if c.Scope.ProviderID == req.Source.ProviderID && (c.Scope.AccountID == req.Source.AccountID || c.Scope.ProfileID == req.Source.ProfileID) {
@@ -71,38 +78,52 @@ func SelectFallback(req SwitchRequest, candidates []Account) (Account, error) {
 		if c.ExpiresAt.IsZero() || !req.Now.Before(c.ExpiresAt) || v.FetchedAt.IsZero() || v.FetchedAt.After(req.Now) {
 			continue
 		}
-		if v.Provider != c.Scope.ProviderID || v.Profile != c.Scope.ProfileID {
+		if v.Provider != c.Scope.ProviderID || v.Profile != c.Scope.ProfileID || c.QuotaScope != c.Scope {
 			continue
 		}
-		// At least one independent pool must have a current measured window.
-		// The host's ModelCompatible must also verify the selected model group.
-		known := false
-		for _, group := range v.ModelGroups {
-			current := false
-			blocked := false
-			for _, w := range group.Windows {
-				if w.Kind == "unknown" || (w.ResetTime != nil && !req.Now.Before(*w.ResetTime)) {
-					continue
-				}
-				if w.Remaining > 0 && w.Remaining <= 100 {
-					current = true
-				} else {
-					blocked = true
-				}
-			}
-			if current && !blocked {
-				known = true
-				break
-			}
-		}
-		if !known {
+		// Require the actual selected pool and provider-wide constraints.
+		if !modelPoolAvailable(v, c.QuotaGroup, req.Now) {
 			continue
 		}
 		in := c.Eligibility
 		in.ExplicitSelection = false
+		in.View.ComputeAvailabilityAt(req.Now)
 		if quota.EvaluateEligibility(in).Eligible {
 			return c, nil
 		}
 	}
 	return Account{}, ErrNoEligibleAccount
+}
+
+// modelPoolAvailable requires a unique selected group and every required
+// window, including global constraints when a named group is selected.
+func modelPoolAvailable(v quota.QuotaView, key string, now time.Time) bool {
+	found := false
+	globalFound := false
+	for _, group := range v.ModelGroups {
+		if group.Key != key && group.Key != "" {
+			continue
+		}
+		if group.Key == key {
+			if found {
+				return false
+			}
+			found = true
+		} else {
+			if globalFound {
+				return false
+			}
+			globalFound = true
+		}
+		if len(group.Windows) == 0 {
+			return false
+		}
+		for _, w := range group.Windows {
+			if w.Kind == "unknown" || (w.Status != string(model.UsageLive) && w.Status != string(model.UsageCached)) ||
+				!(w.Remaining > 0 && w.Remaining <= 100) || (w.ResetTime != nil && !now.Before(*w.ResetTime)) {
+				return false
+			}
+		}
+	}
+	return found
 }

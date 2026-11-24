@@ -1,7 +1,9 @@
 package quota
 
 import (
+	"math"
 	"testing"
+	"time"
 
 	"github.com/IAPro-Community/IAPro-SDK/model"
 )
@@ -24,5 +26,22 @@ func TestIndependentQuotaGroups(t *testing.T) {
 	}
 	if best, ok := v.BestGroupRemaining(); !ok || best != available {
 		t.Fatalf("best group remaining = %v, %v", best, ok)
+	}
+}
+
+func TestUnusableQuotaEvidence(t *testing.T) {
+	now := time.Now()
+	expired := now.Add(-time.Minute)
+	positive, invalid := 80.0, math.NaN()
+	for _, snap := range []model.UsageSnapshot{
+		{Status: model.UsageError, Windows: []model.UsageWindow{{Kind: "5h", RemainingPercent: &positive}}},
+		{Status: model.UsageLive, Windows: []model.UsageWindow{{Kind: "5h", RemainingPercent: &invalid}}},
+		{Status: model.UsageLive, Windows: []model.UsageWindow{{Kind: "5h", RemainingPercent: &positive, ResetTime: &expired}}},
+	} {
+		v := BuildQuotaView(snap, "", "")
+		v.ComputeAvailabilityAt(now)
+		if v.Available || EvaluateEligibility(EligibilityInput{View: v, Authenticated: true, Health: "healthy"}).Eligible {
+			t.Fatalf("invalid evidence became eligible: %+v", v)
+		}
 	}
 }

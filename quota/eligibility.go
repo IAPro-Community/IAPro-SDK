@@ -86,6 +86,12 @@ func EvaluateEligibility(in EligibilityInput) Eligibility {
 		return out
 	}
 
+	if status == string(model.UsageError) || in.View.AvailReasons.AuthRequired {
+		out.Reason = ReasonUnavailable
+		out.Message = "Quota evidence unavailable"
+		return out
+	}
+
 	// QuotaView.Available is the aggregate authority. ExhaustedWindows may
 	// contain partial diagnostics while another independent model group still
 	// has capacity (for example AGY Gemini exhausted, Claude/GPT available).

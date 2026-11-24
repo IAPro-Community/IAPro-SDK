@@ -5,6 +5,7 @@ package quota
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -107,7 +108,7 @@ func (g ModelGroup) GroupRemaining() (remaining float64, ok bool) {
 }
 
 func windowExpired(w Window, now time.Time) bool {
-	return w.ResetTime != nil && w.ResetTime.Before(now)
+	return w.ResetTime != nil && !now.Before(*w.ResetTime)
 }
 
 // BestGroupRemaining returns the best usable pool capacity: max of each
@@ -213,7 +214,7 @@ func (qv *QuotaView) CompactGroupSummary() string {
 	g := qv.ModelGroups[0]
 	parts := make([]string, 0, len(g.Windows))
 	for _, w := range g.Windows {
-		if w.Kind == "unknown" {
+		if w.Kind == "unknown" || math.IsNaN(w.Remaining) || math.IsInf(w.Remaining, 0) || w.Remaining < 0 || w.Remaining > 100 {
 			continue
 		}
 		parts = append(parts, fmt.Sprintf("%s %.0f%%", shortWindowLabel(w.Kind), w.Remaining))
@@ -297,6 +298,11 @@ func (qv *QuotaView) AvailabilityLabel() string {
 
 // ComputeAvailability analyzes all windows and sets Available + AvailReasons.
 func (qv *QuotaView) ComputeAvailability() {
+	qv.ComputeAvailabilityAt(time.Now())
+}
+
+// ComputeAvailabilityAt recomputes availability with the caller's clock.
+func (qv *QuotaView) ComputeAvailabilityAt(now time.Time) {
 	var exhausted []string
 	qv.Available = true
 	qv.AvailReasons = AvailReasons{}
@@ -316,7 +322,7 @@ func (qv *QuotaView) ComputeAvailability() {
 	}
 
 	// Check UNKNOWN quota — hard gate for autopilot allocation.
-	if qv.Status == string(model.UsageUnknown) {
+	if qv.Status == string(model.UsageUnknown) || qv.Status == string(model.UsageError) {
 		qv.Available = false
 		qv.AvailReasons.UnknownQuota = true
 		return
@@ -327,16 +333,13 @@ func (qv *QuotaView) ComputeAvailability() {
 	// Gemini request even when its Claude/GPT pool is exhausted. The exhausted
 	// group is still exposed in AvailReasons for honest UI feedback.
 	usableGroup := false
-	now := time.Now()
 	for _, g := range qv.ModelGroups {
 		groupExhausted := false
 		hasScorable := false
-		onlyUnknownWindows := true
 		for _, w := range g.Windows {
 			if w.Kind == "unknown" {
 				continue
 			}
-			onlyUnknownWindows = false
 			if windowExpired(w, now) {
 				continue
 			}
@@ -347,12 +350,6 @@ func (qv *QuotaView) ComputeAvailability() {
 			}
 		}
 		if hasScorable && !groupExhausted {
-			usableGroup = true
-		}
-		// A group whose only measured windows have rolled over is treated as
-		// still usable (we lack current evidence of exhaustion). Pure unknown
-		// windows are not capacity evidence.
-		if !hasScorable && !onlyUnknownWindows {
 			usableGroup = true
 		}
 	}

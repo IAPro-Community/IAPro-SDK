@@ -5,6 +5,7 @@ package quota
 
 import (
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/IAPro-Community/IAPro-SDK/model"
@@ -48,14 +49,8 @@ func BuildQuotaView(snap model.UsageSnapshot, account, plan string) QuotaView {
 		remaining := 0.0
 		kind := w.Kind
 		status := string(snap.Status)
-		if w.RemainingPercent != nil {
+		if w.RemainingPercent != nil && !math.IsNaN(*w.RemainingPercent) && !math.IsInf(*w.RemainingPercent, 0) && *w.RemainingPercent >= 0 && *w.RemainingPercent <= 100 {
 			remaining = *w.RemainingPercent
-			if remaining < 0 {
-				remaining = 0
-			}
-			if remaining > 100 {
-				remaining = 100
-			}
 		} else {
 			// Missing percent must not become synthetic 0% exhausted.
 			kind = "unknown"

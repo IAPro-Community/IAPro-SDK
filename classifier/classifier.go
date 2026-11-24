@@ -4,6 +4,7 @@
 package classifier
 
 import (
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -41,9 +42,9 @@ var (
 		regexp.MustCompile(`(?i)\b(service unavailable|bad gateway|gateway timeout|model overloaded)\b`),
 	}
 
-	retrySecondsRegex = regexp.MustCompile(`(?i)(?:retry|try again|wait)\s+(?:in|after)?\s*(\d+)\s*(?:s|sec|seconds)`)
-	retryMinutesRegex = regexp.MustCompile(`(?i)(?:retry|try again|wait)\s+(?:in|after)?\s*(\d+)\s*(?:m|min|minutes)`)
-	retryHoursRegex   = regexp.MustCompile(`(?i)(?:retry|try again|wait)\s+(?:in|after)?\s*(\d+)\s*(?:h|hr|hours)`)
+	retrySecondsRegex = regexp.MustCompile(`(?i)(?:retry|try again|wait)\s+(?:in|after)?\s*(\d+)\s*(?:seconds?|secs?|s)\b`)
+	retryMinutesRegex = regexp.MustCompile(`(?i)(?:retry|try again|wait)\s+(?:in|after)?\s*(\d+)\s*(?:minutes?|mins?|m)\b`)
+	retryHoursRegex   = regexp.MustCompile(`(?i)(?:retry|try again|wait)\s+(?:in|after)?\s*(\d+)\s*(?:hours?|hrs?|h)\b`)
 )
 
 // Classify inspects an error and output log to determine the failure kind and retry parameters.
@@ -124,19 +125,20 @@ func Classify(err error, output string) model.Failure {
 
 // ExtractRetryDuration attempts to parse retry cooldown intervals from error messages.
 func ExtractRetryDuration(s string) time.Duration {
-	if m := retrySecondsRegex.FindStringSubmatch(s); len(m) > 1 {
-		if val, err := strconv.Atoi(m[1]); err == nil && val > 0 {
-			return time.Duration(val) * time.Second
-		}
-	}
-	if m := retryMinutesRegex.FindStringSubmatch(s); len(m) > 1 {
-		if val, err := strconv.Atoi(m[1]); err == nil && val > 0 {
-			return time.Duration(val) * time.Minute
-		}
-	}
-	if m := retryHoursRegex.FindStringSubmatch(s); len(m) > 1 {
-		if val, err := strconv.Atoi(m[1]); err == nil && val > 0 {
-			return time.Duration(val) * time.Hour
+	for _, unit := range []struct {
+		pattern *regexp.Regexp
+		scale   time.Duration
+	}{
+		{retrySecondsRegex, time.Second},
+		{retryMinutesRegex, time.Minute},
+		{retryHoursRegex, time.Hour},
+	} {
+		if m := unit.pattern.FindStringSubmatch(s); len(m) > 1 {
+			val, err := strconv.ParseUint(m[1], 10, 64)
+			if err != nil || val == 0 || val > uint64(math.MaxInt64/int64(unit.scale)) {
+				return 0
+			}
+			return time.Duration(val) * unit.scale
 		}
 	}
 	return 0
