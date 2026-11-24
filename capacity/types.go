@@ -1,0 +1,128 @@
+// SPDX-License-Identifier: MIT
+// Derived from IAPro Nexus; see NOTICE.
+
+package capacitymonitor
+
+import (
+	"crypto/rand"
+	"errors"
+	"math"
+	"math/big"
+	"time"
+)
+
+// State represents the capacity health state of a profile/group/window.
+type State string
+
+const (
+	StateUnknown   State = "UNKNOWN"
+	StateHealthy   State = "HEALTHY"
+	StateWarning   State = "WARNING"
+	StateCritical  State = "CRITICAL"
+	StateExhausted State = "EXHAUSTED"
+	StateRecovered State = "RECOVERED"
+)
+
+// Thresholds defines capacity boundaries for warning, critical, exhausted, and recovery.
+type Thresholds struct {
+	Warning   float64 `json:"warning"`
+	Critical  float64 `json:"critical"`
+	Exhausted float64 `json:"exhausted"`
+	Recovery  float64 `json:"recovery"`
+}
+
+// DefaultThresholds returns official standard Nexus thresholds (percent remaining).
+func DefaultThresholds() Thresholds {
+	return Thresholds{
+		Warning:   20.0,
+		Critical:  10.0,
+		Exhausted: 0.0,
+		Recovery:  25.0,
+	}
+}
+
+// Validate ensures 0 <= exhausted < critical < warning < recovery <= 100
+// with finite values. NaN passes every comparison, so it is rejected explicitly.
+func (t Thresholds) Validate() error {
+	for _, v := range []float64{t.Warning, t.Critical, t.Exhausted, t.Recovery} {
+		if math.IsNaN(v) || math.IsInf(v, 0) {
+			return errors.New("invalid thresholds: values must be finite")
+		}
+	}
+	if t.Exhausted < 0 || t.Exhausted >= t.Critical {
+		return errors.New("invalid thresholds: exhausted must be >= 0 and < critical")
+	}
+	if t.Critical >= t.Warning {
+		return errors.New("invalid thresholds: critical must be < warning")
+	}
+	if t.Warning >= t.Recovery {
+		return errors.New("invalid thresholds: warning must be < recovery")
+	}
+	if t.Recovery > 100 {
+		return errors.New("invalid thresholds: recovery must be <= 100")
+	}
+	return nil
+}
+
+// Clock abstracts time measurement for deterministic testing.
+type Clock interface {
+	Now() time.Time
+}
+
+// RealClock uses standard system time.
+type RealClock struct{}
+
+func (RealClock) Now() time.Time { return time.Now().UTC() }
+
+// JitterSource adds bounded random jitter to intervals.
+type JitterSource interface {
+	Duration(base time.Duration) time.Duration
+}
+
+// RealJitter adds 0-10% randomized jitter. The bound holds for every positive
+// base: sub-millisecond bases jitter by a fraction of a nanosecond slice.
+type RealJitter struct{}
+
+func (RealJitter) Duration(base time.Duration) time.Duration {
+	if base <= 0 {
+		return base
+	}
+	tenth := int64(base / 10)
+	if tenth <= 0 {
+		tenth = 1
+	}
+	n, err := rand.Int(rand.Reader, big.NewInt(tenth))
+	if err != nil {
+		return base
+	}
+	add := time.Duration(n.Int64())
+	if add > 0 && base > time.Duration(math.MaxInt64)-add {
+		return time.Duration(math.MaxInt64)
+	}
+	return base + add
+}
+
+// ResourceState provides a snapshot of a monitored resource.
+type ResourceState struct {
+	Key              string    `json:"key"`
+	Provider         string    `json:"provider"`
+	Profile          string    `json:"profile"`
+	QuotaGroup       string    `json:"quota_group"`
+	WindowKind       string    `json:"window_kind"`
+	State            State     `json:"state"`
+	RemainingPercent *float64  `json:"remaining_percent,omitempty"`
+	ResetDescription string    `json:"reset_description,omitempty"`
+	LastObservedAt   time.Time `json:"last_observed_at"`
+	TransitionedAt   time.Time `json:"transitioned_at"`
+}
+
+// Status represents the live diagnostic status of the capacity monitor.
+type Status struct {
+	IsLeader            bool            `json:"is_leader"`
+	LeaderOwner         string          `json:"leader_owner"`
+	Running             bool            `json:"running"`
+	ConsecutiveFailures int             `json:"consecutive_failures"`
+	MonitoredResources  int             `json:"monitored_resources"`
+	LastTickAt          time.Time       `json:"last_tick_at"`
+	Resources           []ResourceState `json:"resources"`
+}

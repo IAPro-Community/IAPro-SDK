@@ -1,0 +1,37 @@
+{
+  "id": "cursor",
+  "binary_candidates": [
+    "cursor-agent",
+    "agent"
+  ],
+  "env_keys": [
+    "AI_PROFILE",
+    "AI_PROVIDER",
+    "CURSOR_CONFIG_DIR",
+    "CURSOR_HOME",
+    "HOME",
+    "PATH",
+    "USERPROFILE"
+  ],
+  "env_delete": null,
+  "kickoff": [
+    "-p",
+    "{prompt}",
+    "--output-format",
+    "text"
+  ],
+  "resume": [
+    "--resume",
+    "{session}"
+  ],
+  "auto_approval": null,
+  "review_mode": [
+    "--mode=ask",
+    "--output-format",
+    "text"
+  ],
+  "autonomous_isolation": "UNVERIFIED",
+  "review_isolation": "UNVERIFIED",
+  "quota": "UNSUPPORTED",
+  "known_versions": null
+}

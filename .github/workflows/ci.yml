@@ -22,4 +22,4 @@ jobs:
       - if: runner.os == 'Linux'
         run: go test -race ./... -count=1
       - if: runner.os == 'Linux'
-        run: test -z "$(gofmt -l model classifier quota)"
+        run: test -z "$(gofmt -l .)"

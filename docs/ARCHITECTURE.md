@@ -21,3 +21,7 @@ Mover código, fixtures e testes como lote. Publicar versões imutáveis após a
 ## Gates
 
 `go test ./...`, `go test -race ./...` (ambiente com CGO), `go vet ./...`, `gofmt`; Linux/Windows/macOS. Testes de provider real somente autorizados. Gates de consumidores separados; não modificar releases em estabilização. Ver NOTICE e Nexus #74 para revisão jurídica. Versão Go 1.23 inicial por compatibilidade; upgrade depende de ADR.
+
+## Segundo recorte
+
+Provider specs e runtime discovery, parsing de quota Claude/Gemini, envelopes de coordenação, threshold de capacidade, motivo/gate de fallback e DTOs/seleção de foco HUD. Os contratos de CLI preservam o inventário histórico de flags; não são recomendações de segurança nem autorização para execução. O host deve implementar isolamento, secret store e integração com APIs suportadas. Não há execução de probes nem transferência de sessão neste lote. O gate de fallback exige conta distinta autorizada, termos permitidos, orçamento, evidência de quota fresca e fronteira segura. O host revalida e reserva antes de iniciar. Coordenação preserva formato Nexus para adapters; status e IDs são controlados pelo host, não pelo modelo. O SDK não materializa tarefas. HUD é projeção read-only; UI e tipos específicos de produto ainda exigem adapters.
