@@ -29,3 +29,7 @@ Provider specs e runtime discovery, parsing de quota Claude/Gemini, envelopes de
 ## Revisão de segurança
 
 SelectFallback exige QuotaScope derivado da observação original, e não copiado da identidade atual; deve coincidir com Scope integralmente. Model e GroupMapped são explícitos, QuotaGroup corresponde ao pool do modelo. Janelas desconhecidas/expiradas não autorizam seleção. O host é responsável por obter e vincular evidência autêntica, lease e execução. Classify recebe somente diagnósticos confiáveis, nunca texto gerado pelo modelo.
+
+## Contratos de adapters e gate de execução
+
+O pacote providers define portas neutras de descoberta, autenticação, quota, execução tipada e continuidade. Ainda não há implementação de subprocesso ou autenticação real nesses contratos. O parser Codex aceita somente o resultado de account/rateLimits/read, após o host comprovar home isolado e identidade externa; falta integrar transporte oficial e locks. Não confundir fixtures com homologação real.

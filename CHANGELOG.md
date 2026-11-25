@@ -14,3 +14,6 @@
 - CI publica metadados Go da revisão imutável para integração dos consumidores.
 
 - Endurecer fallback: identidade da evidência de quota, grupo/modelo explícitos, janelas válidas e proteção contra overflow no retry.
+
+- Rejeitar percentuais ausentes ou inválidos, proteger specs de mutação, exigir ausência de efeitos após reconciliação e clonar timestamps de coordenação.
+- Adicionar contrato neutro de adapters e normalização do resultado de quota Codex com identidade e bloqueio oficial.

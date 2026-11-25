@@ -24,7 +24,8 @@ A base inicial é deliberadamente pequena. Módulos não implementados não deve
 |---|---|
 | model / classifier / quota | Tipos, classificação de falhas e elegibilidade |
 | providers/spec | Contratos de seis CLIs e goldens; metadados de flags não são autorização de execução |
-| providers/parsers | Normalização de respostas Claude/Gemini já obtidas pelo host |
+| providers/parsers | Normalização de respostas Claude/Gemini/Codex já obtidas pelo host |
+| providers | Contratos de adapters, autenticação, uso e execução; ainda sem runtime completo |
 | runtime | Descoberta de binários e ambiente, sem executar providers |
 | routing | Motivo tipado e gate conservador de fallback; sem dispatch ou handoff |
 | coordination | Envelope de coordenação, validação e ID semântico; host controla autorização e persistência |
