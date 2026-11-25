@@ -24,3 +24,14 @@ func TestCanAdvanceChain(t *testing.T) {
 		t.Fatal("pre-dispatch failure should advance")
 	}
 }
+
+func TestReconciliationAloneDoesNotAuthorizeReplay(t *testing.T) {
+	b := ChainBoundary{Authorized: true, Retryable: true, EffectsPossible: true, EffectsReconciled: true}
+	if CanAdvanceChain(b) {
+		t.Fatal("known committed effects are not safe to replay")
+	}
+	b.NoSideEffects = true
+	if !CanAdvanceChain(b) {
+		t.Fatal("verified absence of effects should permit retry")
+	}
+}

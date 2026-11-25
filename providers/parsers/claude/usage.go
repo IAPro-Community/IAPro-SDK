@@ -12,8 +12,8 @@ import (
 )
 
 type claudeUsagePeriod struct {
-	Utilization float64 `json:"utilization"`
-	ResetsAt    string  `json:"resets_at"`
+	Utilization *float64 `json:"utilization"`
+	ResetsAt    string   `json:"resets_at"`
 }
 
 type claudeUsageResponse struct {
@@ -29,13 +29,12 @@ func claudeUsageWindows(usage claudeUsageResponse) []model.UsageWindow {
 		if period == nil {
 			return
 		}
-		used := clampPercent(period.Utilization)
-		remaining := 100 - used
-		window := model.UsageWindow{
-			Kind:             kind,
-			Group:            group,
-			UsedPercent:      &used,
-			RemainingPercent: &remaining,
+		window := model.UsageWindow{Kind: kind, Group: group}
+		if period.Utilization != nil && *period.Utilization >= 0 && *period.Utilization <= 100 {
+			used := *period.Utilization
+			remaining := 100 - used
+			window.UsedPercent = &used
+			window.RemainingPercent = &remaining
 		}
 		if reset, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(period.ResetsAt)); err == nil {
 			reset = reset.UTC()
@@ -51,15 +50,6 @@ func claudeUsageWindows(usage claudeUsageResponse) []model.UsageWindow {
 	return windows
 }
 
-func clampPercent(value float64) float64 {
-	if value < 0 {
-		return 0
-	}
-	if value > 100 {
-		return 100
-	}
-	return value
-}
 
 // ParseUsage decodes a quota response already retrieved by an authorized host.
 func ParseUsage(raw []byte) ([]model.UsageWindow, error) {

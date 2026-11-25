@@ -8,3 +8,16 @@ func TestParseUsage(t *testing.T) {
 		t.Fatalf("unexpected quota: %+v %v", w, err)
 	}
 }
+
+func TestInvalidMeasurementsAreUnknown(t *testing.T) {
+	for _, raw := range []string{
+		`{"buckets":[{"modelId":"m","remainingFraction":-1,"remainingAmount":"NaN"}]}`,
+		`{"buckets":[{"modelId":"m","remainingFraction":1.1,"remainingAmount":"Infinity"}]}`,
+		`{"buckets":[{"modelId":"m","remainingAmount":-1}]}`,
+	} {
+		w, err := ParseUsage([]byte(raw))
+		if err != nil || len(w) != 1 || w[0].RemainingPercent != nil || w[0].Remaining != nil {
+			t.Fatalf("invalid measurement: %s: %+v %v", raw, w, err)
+		}
+	}
+}

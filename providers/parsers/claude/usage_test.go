@@ -11,3 +11,17 @@ func TestParseUsage(t *testing.T) {
 		t.Fatal("invalid JSON accepted")
 	}
 }
+
+func TestMissingUtilizationIsUnknown(t *testing.T) {
+	for _, raw := range []string{
+		`{"five_hour":{"resets_at":"2026-11-24T22:00:00Z"}}`,
+		`{"five_hour":{"utilization":null}}`,
+		`{"five_hour":{"utilization":-1}}`,
+		`{"five_hour":{"utilization":101}}`,
+	} {
+		w, err := ParseUsage([]byte(raw))
+		if err != nil || len(w) != 1 || w[0].RemainingPercent != nil {
+			t.Fatalf("invalid utilization became measured quota: %s: %+v %v", raw, w, err)
+		}
+	}
+}

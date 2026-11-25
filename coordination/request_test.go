@@ -3,6 +3,7 @@ package coordination
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestRequestContract(t *testing.T) {
@@ -31,5 +32,20 @@ func TestRequestContract(t *testing.T) {
 	copy.Operation = "EXECUTE"
 	if ValidateCoordinationRequest(copy) == nil {
 		t.Fatal("unknown operation")
+	}
+}
+
+func TestCloneAndRawSizeBound(t *testing.T) {
+	now := time.Now()
+	r := CoordinationRequest{RunID: "run", SourcePackageID: "task", Operation: CoordinationNeedInfo, Subject: "question", Status: CoordinationPending, MaterializedAt: &now}
+	r.ID = RequestID(r)
+	cloned := CloneRequest(r)
+	*cloned.MaterializedAt = now.Add(time.Hour)
+	if r.MaterializedAt.Equal(*cloned.MaterializedAt) {
+		t.Fatal("clone shares timestamp pointer")
+	}
+	r.Subject += strings.Repeat(" ", 1024)
+	if ValidateCoordinationRequest(r) == nil {
+		t.Fatal("whitespace must count toward payload size")
 	}
 }

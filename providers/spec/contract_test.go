@@ -97,3 +97,12 @@ func snapshotOf(s Spec) contractSnapshot {
 		KnownVersions:       append([]string(nil), s.KnownVersions...),
 	}
 }
+
+func TestRegistryCannotBeMutatedByConsumers(t *testing.T) {
+	s := MustGet("codex")
+	s.BinaryCandidates[0] = "modified"
+	s.KnownVersions[0] = "modified"
+	if next := MustGet("codex"); next.BinaryCandidates[0] == "modified" || next.KnownVersions[0] == "modified" {
+		t.Fatal("consumer mutated canonical registry")
+	}
+}

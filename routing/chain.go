@@ -12,6 +12,7 @@ type ChainBoundary struct {
 	BeforeDispatch    bool
 	EffectsPossible   bool
 	EffectsReconciled bool
+	NoSideEffects     bool
 }
 
 // CanAdvanceChain refuses ambiguous retries if a tool or native CLI could
@@ -19,5 +20,5 @@ type ChainBoundary struct {
 // absence of effects. The host remains responsible for identity and budget.
 func CanAdvanceChain(b ChainBoundary) bool {
 	return b.Authorized && b.Retryable && !b.Canceled && !b.BudgetOrLedger &&
-		!b.OutputEmitted && (b.BeforeDispatch || !b.EffectsPossible || b.EffectsReconciled)
+		!b.OutputEmitted && (b.BeforeDispatch || !b.EffectsPossible || (b.EffectsReconciled && b.NoSideEffects))
 }

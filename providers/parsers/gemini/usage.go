@@ -5,6 +5,7 @@ package gemini
 
 import (
 	"encoding/json"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -38,8 +39,8 @@ func parseGeminiQuotaBuckets(buckets []geminiQuotaBucket) []model.UsageWindow {
 		if window.Unit == "" {
 			window.Unit = "quota"
 		}
-		if bucket.RemainingFraction != nil {
-			remainingPercent := clampPercent(*bucket.RemainingFraction * 100)
+		if bucket.RemainingFraction != nil && *bucket.RemainingFraction >= 0 && *bucket.RemainingFraction <= 1 {
+			remainingPercent := *bucket.RemainingFraction * 100
 			usedPercent := 100 - remainingPercent
 			window.RemainingPercent = &remainingPercent
 			window.UsedPercent = &usedPercent
@@ -73,18 +74,9 @@ func parseRemainingAmount(raw json.RawMessage) (float64, bool) {
 		return 0, false
 	}
 	amount, err := strconv.ParseFloat(value, 64)
-	return amount, err == nil
+	return amount, err == nil && !math.IsNaN(amount) && !math.IsInf(amount, 0) && amount >= 0
 }
 
-func clampPercent(value float64) float64 {
-	if value < 0 {
-		return 0
-	}
-	if value > 100 {
-		return 100
-	}
-	return value
-}
 
 // ParseUsage decodes a quota response already retrieved by an authorized host.
 func ParseUsage(raw []byte) ([]model.UsageWindow, error) {

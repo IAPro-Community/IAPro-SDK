@@ -5,6 +5,7 @@ package spec
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/IAPro-Community/IAPro-SDK/runtime"
@@ -78,7 +79,7 @@ func (s Spec) ReviewIsolationLevel() IsolationGuarantee {
 // Get returns the Spec for a provider id.
 func Get(id string) (Spec, bool) {
 	value, ok := registry[strings.ToLower(strings.TrimSpace(id))]
-	return value, ok
+	return cloneSpec(value), ok
 }
 
 // MustGet returns the Spec or panics.
@@ -94,7 +95,7 @@ func MustGet(id string) Spec {
 func All() []Spec {
 	result := make([]Spec, 0, len(orderedIDs))
 	for _, id := range orderedIDs {
-		result = append(result, registry[id])
+		result = append(result, cloneSpec(registry[id]))
 	}
 	return result
 }
@@ -125,4 +126,28 @@ func (s Spec) OverlayEnv(base []string, profileHome, binDir, profileName string)
 // NormalizeFlags maps canonical aliases for this provider.
 func (s Spec) NormalizeFlags(args []string) []string {
 	return Normalize(s.ID, args, nil)
+}
+
+// cloneSpec prevents callers from mutating the canonical provider registry.
+func cloneSpec(s Spec) Spec {
+	s.BinaryCandidates = slices.Clone(s.BinaryCandidates)
+	s.EnvDelete = slices.Clone(s.EnvDelete)
+	s.AutoApproval = slices.Clone(s.AutoApproval)
+	s.ReviewMode = slices.Clone(s.ReviewMode)
+	s.KnownVersions = slices.Clone(s.KnownVersions)
+	if s.Flags != nil {
+		flags := make(FlagTable, len(s.Flags))
+		for key, alias := range s.Flags {
+			if alias.ProviderFlags != nil {
+				m := make(map[string][]string, len(alias.ProviderFlags))
+				for provider, values := range alias.ProviderFlags {
+					m[provider] = slices.Clone(values)
+				}
+				alias.ProviderFlags = m
+			}
+			flags[key] = alias
+		}
+		s.Flags = flags
+	}
+	return s
 }

@@ -72,7 +72,7 @@ type CoordinationRequest struct {
 }
 
 func validateCoordinationString(name, value string, maxBytes int) error {
-	if len(strings.TrimSpace(value)) > maxBytes {
+	if len(value) > maxBytes {
 		return fmt.Errorf("coordination %s exceeds %d bytes", name, maxBytes)
 	}
 	return nil
@@ -83,7 +83,7 @@ func validateCoordinationList(name string, values []string) error {
 		return fmt.Errorf("coordination %s exceeds %d items", name, maxCoordinationListItems)
 	}
 	for _, value := range values {
-		if len(strings.TrimSpace(value)) > maxCoordinationListItemBytes {
+		if len(value) > maxCoordinationListItemBytes {
 			return fmt.Errorf("coordination %s item exceeds %d bytes", name, maxCoordinationListItemBytes)
 		}
 	}
@@ -161,6 +161,14 @@ func CloneRequest(in CoordinationRequest) CoordinationRequest {
 	out := in
 	out.RequiredCapabilities = append([]string(nil), in.RequiredCapabilities...)
 	out.ArtifactRefs = append([]string(nil), in.ArtifactRefs...)
+	if in.MaterializedAt != nil {
+		value := *in.MaterializedAt
+		out.MaterializedAt = &value
+	}
+	if in.ResolvedAt != nil {
+		value := *in.ResolvedAt
+		out.ResolvedAt = &value
+	}
 	return out
 }
 
