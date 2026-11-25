@@ -192,6 +192,9 @@ func (c *UsageCoordinator) RefreshBatch(ctx context.Context, accounts []Account,
 			code := ClassifyProbeError(err)
 			if err == nil && snap.DiagnosticCode != "" {
 				code = safeProbeCode(ProbeCode(snap.DiagnosticCode))
+				if code != ProbeOK {
+					err = &ProbeError{Code: code}
+				}
 			}
 			// Outcomes cross consumer boundaries: never forward adapter error
 			// strings or an untrusted snapshot after an unsuccessful probe.

@@ -102,6 +102,7 @@ func SelectFallback(req SwitchRequest, candidates []Account) (Account, error) {
 		}
 		in := c.Eligibility
 		in.ExplicitSelection = false
+		in.Now = req.Now
 		in.View.ComputeAvailabilityAt(req.Now)
 		if quota.EvaluateEligibility(in).Eligible {
 			return c, nil
