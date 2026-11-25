@@ -51,7 +51,7 @@ var codexSpec = Spec{
 	KnownVersions:       []string{"0.50.0"},
 	ModelGroups: []ModelGroupSpec{
 		{
-			Key:         "",
+			Key:         "claude_gpt",
 			DisplayName: "Codex",
 			Tier:        GroupTierPrimary,
 			Aliases:     []string{"gpt", "o1", "o3", "o4", "codex"},

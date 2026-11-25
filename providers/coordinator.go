@@ -52,7 +52,7 @@ func ClassifyProbeError(err error) ProbeCode {
 	}
 	var pe *ProbeError
 	if errors.As(err, &pe) && pe.Code != "" {
-		return pe.Code
+		return safeProbeCode(pe.Code)
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
 		return ProbeTimeout
@@ -136,14 +136,18 @@ func (c *UsageCoordinator) RefreshBatch(ctx context.Context, accounts []Account,
 	sem := make(chan struct{}, maxConc)
 
 	var inFlightMu sync.Mutex
-	inFlight := make(map[string]*inFlightProbe)
+	inFlight := make(map[Account]*inFlightProbe)
 
 	var wg sync.WaitGroup
 	for i, acc := range accounts {
 		wg.Add(1)
 		go func(idx int, account Account) {
 			defer wg.Done()
-			key := account.OwnerID + "|" + account.Scope.ProviderID + "|" + account.Scope.ProfileID + "|" + account.Scope.AccountID
+			key := account
+			if err := account.Validate(); err != nil {
+				outcomes[idx] = ProbeOutcome{Account: account, Code: ProbeAuthExpired, Err: ErrIdentityMismatch}
+				return
+			}
 			inFlightMu.Lock()
 			if shared, ok := inFlight[key]; ok {
 				inFlightMu.Unlock()
@@ -153,6 +157,7 @@ func (c *UsageCoordinator) RefreshBatch(ctx context.Context, accounts []Account,
 				case <-shared.done:
 					outcomes[idx] = shared.outcome
 					outcomes[idx].Account = account
+					outcomes[idx].Snapshot = cloneUsage(shared.outcome.Snapshot)
 				}
 				return
 			}
@@ -179,15 +184,33 @@ func (c *UsageCoordinator) RefreshBatch(ctx context.Context, accounts []Account,
 			snap, err := c.probe(probeCtx, account)
 			cancel()
 
+			if err == nil && (snap.AccountScope != account.Scope ||
+				snap.ProviderID != account.Scope.ProviderID || snap.ProfileID != account.Scope.ProfileID ||
+				snap.FetchedAt.IsZero() || snap.FetchedAt.After(time.Now())) {
+				err = ErrIdentityMismatch
+			}
 			code := ClassifyProbeError(err)
 			if err == nil && snap.DiagnosticCode != "" {
-				code = ProbeCode(snap.DiagnosticCode)
+				code = safeProbeCode(ProbeCode(snap.DiagnosticCode))
 			}
-			if err != nil && snap.DiagnosticCode == "" {
-				snap.DiagnosticCode = string(code)
-				if snap.Error == "" {
-					snap.Error = err.Error()
+			// Outcomes cross consumer boundaries: never forward adapter error
+			// strings or an untrusted snapshot after an unsuccessful probe.
+			if err != nil {
+				snap = model.UsageSnapshot{ProviderID: account.Scope.ProviderID, ProfileID: account.Scope.ProfileID,
+					AccountScope: account.Scope, Status: model.UsageError, Source: model.SourceNone}
+				switch {
+				case errors.Is(err, context.Canceled):
+					err = context.Canceled
+				case errors.Is(err, context.DeadlineExceeded):
+					err = context.DeadlineExceeded
+				default:
+					err = &ProbeError{Code: code}
 				}
+			}
+			snap.DiagnosticCode = string(code)
+			snap.Error = ""
+			if code != ProbeOK {
+				snap.Error = string(code)
 			}
 			res := ProbeOutcome{
 				Account:  account,
@@ -198,6 +221,7 @@ func (c *UsageCoordinator) RefreshBatch(ctx context.Context, accounts []Account,
 			}
 			shared.outcome = res
 			outcomes[idx] = res
+			outcomes[idx].Snapshot = cloneUsage(res.Snapshot)
 		}(i, acc)
 	}
 	wg.Wait()
@@ -207,4 +231,15 @@ func (c *UsageCoordinator) RefreshBatch(ctx context.Context, accounts []Account,
 type inFlightProbe struct {
 	done    chan struct{}
 	outcome ProbeOutcome
+}
+
+// safeProbeCode accepts only declared machine-readable diagnostics.
+func safeProbeCode(code ProbeCode) ProbeCode {
+	switch code {
+	case ProbeOK, ProbeTimeout, ProbeAuthExpired, ProbeProfileLocked, ProbeRateLimited,
+		ProbeParseFailed, ProbeBinaryMissing, ProbeUnsupported, ProbeNetworkError, ProbeUnknownError:
+		return code
+	default:
+		return ProbeUnknownError
+	}
 }

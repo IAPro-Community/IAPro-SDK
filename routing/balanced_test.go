@@ -190,3 +190,10 @@ func TestRankAndSelectBalancedRotatesOnlyAmongTopTies(t *testing.T) {
 	}
 	_ = quota.ReasonOK
 }
+
+func TestRankAndSelectDoesNotGuessUnknownModelGroup(t *testing.T) {
+	decision := RankAndSelect(SelectionRequest{ProviderID: "codex", TargetModel: "unmapped-model", Now: time.Now()}, nil)
+	if decision.Selected != nil || decision.ReasonCode != "UNKNOWN_MODEL_GROUP" {
+		t.Fatal("unknown model must not select an unrelated pool")
+	}
+}

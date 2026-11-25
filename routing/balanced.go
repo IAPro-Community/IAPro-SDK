@@ -73,6 +73,9 @@ type SelectionDecision struct {
 }
 
 // RankAndSelect evaluates candidates under the provider's tiering and freshness policy.
+// It is advisory ranking only, not dispatch authorization. Consumers must pass
+// the selected account through SelectFallback (or the explicit primary gate),
+// budget reservation, identity revalidation and host fencing before dispatch.
 //
 // Tier rule:
 //  1. Candidates with usable primary quota (>0%) always outrank auxiliary-only candidates.
@@ -112,8 +115,13 @@ func RankAndSelect(req SelectionRequest, candidates []SelectionCandidate) Select
 
 	targetGroup := ""
 	hasTargetGroup := false
-	if hasSpec && strings.TrimSpace(req.TargetModel) != "" {
-		targetGroup, hasTargetGroup = resolvedSpec.ResolveGroupForModel(req.TargetModel)
+	if strings.TrimSpace(req.TargetModel) != "" {
+		if hasSpec {
+			targetGroup, hasTargetGroup = resolvedSpec.ResolveGroupForModel(req.TargetModel)
+		}
+		if !hasTargetGroup {
+			return SelectionDecision{ReasonCode: "UNKNOWN_MODEL_GROUP", Explanation: "target model has no declared quota group"}
+		}
 	}
 
 	outcomes := make([]CandidateOutcome, 0, len(candidates))
