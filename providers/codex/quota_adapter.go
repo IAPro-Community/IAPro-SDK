@@ -18,13 +18,13 @@ import (
 // exclusive access to a dedicated profile, secret ownership and safe launch.
 // ReadAuth returns an owned buffer that the adapter wipes after use.
 type DedicatedQuotaConfig struct {
-	Home       string
-	ReadAuth   func(context.Context) ([]byte, error)
-	Lock       func(context.Context) (func(), error)
-	Login      Launch
-	AppServer  Launch
-	SameHome   func(string, string) bool
-	Now        func() time.Time
+	Home      string
+	ReadAuth  func(context.Context) ([]byte, error)
+	Lock      func(context.Context) (func(), error)
+	Login     Launch
+	AppServer Launch
+	SameHome  func(string, string) bool
+	Now       func() time.Time
 }
 
 // DedicatedQuota supplies the shared identity/authentication/probe lifecycle.
