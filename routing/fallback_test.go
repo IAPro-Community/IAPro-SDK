@@ -13,12 +13,13 @@ func TestSelectFallback(t *testing.T) {
 	now := time.Date(2026, 11, 24, 0, 0, 0, 0, time.UTC)
 	source := model.AccountScope{ProviderID: "codex", ProfileID: "a", AccountID: "1", IdentityVersion: "v1"}
 	target := model.AccountScope{ProviderID: "codex", ProfileID: "b", AccountID: "2", IdentityVersion: "v1"}
-	req := SwitchRequest{OwnerID: "owner", Source: source, AllowSwitch: true, BeforeDispatch: true, Now: now}
+	expiry := now.Add(time.Minute)
+	req := SwitchRequest{OwnerID: "owner", RunID: "run", Source: source, AllowSwitch: true, BeforeDispatch: true, Now: now}
 	c := Account{
 		OwnerID: "owner", Scope: target, Authorized: true, TermsPermit: true, ModelCompatible: true, QuotaScope: target, Model: "gpt-test", GroupMapped: true,
 		ExpiresAt: now.Add(time.Minute),
 		Eligibility: quota.EligibilityInput{Authenticated: true, Health: "healthy", View: quota.QuotaView{
-			Provider: "codex", Profile: "b", Status: "LIVE", FetchedAt: now, Available: true,
+			Provider: "codex", Profile: "b", Scope: target, ExpiresAt: &expiry, Status: "LIVE", FetchedAt: now, Available: true,
 			ModelGroups: []quota.ModelGroup{{Windows: []quota.Window{{Kind: "5h", Remaining: 50, Status: "LIVE"}}}},
 		}},
 	}
@@ -51,6 +52,20 @@ func TestSelectFallback(t *testing.T) {
 				t.Fatalf("expected refusal, got %v", err)
 			}
 		})
+	}
+	paid := c
+	paid.Paid = true
+	req.AllowPaid = true
+	if _, err := SelectFallback(req, []Account{paid}); !errors.Is(err, ErrNoEligibleAccount) {
+		t.Fatal("paid fallback without reservation accepted")
+	}
+	paid.Reservation = &BudgetReservation{ID: "reservation", OwnerID: "owner", RunID: "run", Scope: target, Model: paid.Model, MaxMicroUSD: 10, ExpiresAt: expiry}
+	if _, err := SelectFallback(req, []Account{paid}); err != nil {
+		t.Fatalf("valid paid reservation rejected: %v", err)
+	}
+	paid.Reservation.RunID = "other-run"
+	if _, err := SelectFallback(req, []Account{paid}); !errors.Is(err, ErrNoEligibleAccount) {
+		t.Fatal("foreign reservation accepted")
 	}
 	req.BeforeDispatch = false
 	if _, err := SelectFallback(req, []Account{c}); !errors.Is(err, ErrUnsafeSwitch) {

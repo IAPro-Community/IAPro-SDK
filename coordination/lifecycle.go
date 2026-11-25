@@ -46,6 +46,13 @@ func Admit(in Admission, req CoordinationRequest, now time.Time) (CoordinationRe
 	req.Status, req.CreatedAt = CoordinationPending, now.UTC()
 	req.ChildPackageID, req.ResultReceiptID, req.ResolutionSummary = "", "", ""
 	req.MaterializedAt, req.ResolvedAt = nil, nil
+	// Validate raw payload bounds before hashing or persisting it.
+	originalID := req.ID
+	req.ID = "pending"
+	if err := ValidateCoordinationRequest(req); err != nil {
+		return CoordinationRequest{}, false, err
+	}
+	req.ID = originalID
 	derivedID := RequestID(req)
 	if req.ID != "" && req.ID != derivedID {
 		return CoordinationRequest{}, false, ErrCoordinationConflict

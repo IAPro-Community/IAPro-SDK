@@ -16,6 +16,9 @@ import (
 // QuotaView is the omnibus view model for quota display and scoring.
 // Consumed by TUI, Web API, CLI, and Scheduler.
 type QuotaView struct {
+	Scope     model.AccountScope `json:"account_scope"`
+	ExpiresAt *time.Time         `json:"expires_at,omitempty"`
+
 	Provider     string       `json:"provider"`
 	Profile      string       `json:"profile"`
 	Account      string       `json:"account"`

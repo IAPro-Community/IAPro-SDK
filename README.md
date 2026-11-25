@@ -36,3 +36,16 @@ A base inicial é deliberadamente pequena. Módulos não implementados não deve
 | ui/react | AI Control, ProviderCard, CostPanel e HUD read-only; pacote privado até revisão de release |
 
 `go test ./...`, `go vet ./...`. Não utilizar flags de bypass de aprovação extraídas dos contratos como política de execução. Autorização, leases, orçamento e segurança permanecem no host. Adapters completos, transações de handoff, integração dos consumidores e UI ainda são gates em aberto.
+
+## Matriz de evidência (não é certificação de produção)
+
+| Provider | Specs/discovery | Parser quota | Execução estruturada | Auth/refresh e sessão real |
+|---|---|---|---|---|
+| Codex | fixtures | parser e RPC via host | runtime JSONL e fixture subprocesso | login status + atribuição local; homologação pendente |
+| Claude | fixtures | parser | pendente | pendente |
+| Gemini | fixtures | parser | pendente | pendente |
+| AGY | fixtures | pendente | pendente | pendente |
+| OpenCode | fixtures | não comprovado | pendente | pendente |
+| Cursor | fixtures | não comprovado | pendente | pendente |
+
+A integração do Calango requer versão pinada com checksums, CI e revisão do host; não anunciar SDK estável nem ativar handoff automático até validar persistência, credenciais e efeitos reais. A migração do Nexus foi explicitamente adiada pelo mantenedor.

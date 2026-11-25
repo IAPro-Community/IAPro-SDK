@@ -23,8 +23,8 @@ type Account struct {
 	ModelCompatible bool
 	Paid            bool
 	// Paid fallback needs a verified host budget reservation before selection.
-	BudgetReserved  bool
-	ExpiresAt       time.Time
+	Reservation *BudgetReservation
+	ExpiresAt   time.Time
 
 	// QuotaScope is the identity bound to the observed quota, not the current login.
 	QuotaScope  model.AccountScope
@@ -35,8 +35,20 @@ type Account struct {
 
 // SwitchRequest describes a failed or unavailable source and the policy
 // established by the host. No execution or credential transfer occurs here.
+type BudgetReservation struct {
+	ID          string
+	OwnerID     string
+	RunID       string
+	Scope       model.AccountScope
+	Model       string
+	MaxMicroUSD int64
+	ExpiresAt   time.Time
+}
+
+// SwitchRequest describes a failed or unavailable source and the policy.
 type SwitchRequest struct {
 	OwnerID            string
+	RunID              string
 	Source             model.AccountScope
 	AllowSwitch        bool
 	AllowOtherProvider bool
@@ -68,7 +80,7 @@ func SelectFallback(req SwitchRequest, candidates []Account) (Account, error) {
 		if !req.AllowOtherProvider && c.Scope.ProviderID != req.Source.ProviderID {
 			continue
 		}
-		if c.Paid && (!req.AllowPaid || !c.BudgetReserved) {
+		if c.Paid && !paidAuthorized(req, c) {
 			continue
 		}
 		// An automatic switch requires measured, unexpired evidence; manual
@@ -80,7 +92,8 @@ func SelectFallback(req SwitchRequest, candidates []Account) (Account, error) {
 		if c.ExpiresAt.IsZero() || !req.Now.Before(c.ExpiresAt) || v.FetchedAt.IsZero() || v.FetchedAt.After(req.Now) || !c.ExpiresAt.After(v.FetchedAt) {
 			continue
 		}
-		if v.Provider != c.Scope.ProviderID || v.Profile != c.Scope.ProfileID || c.QuotaScope != c.Scope {
+		if v.Provider != c.Scope.ProviderID || v.Profile != c.Scope.ProfileID || c.QuotaScope != c.Scope || v.Scope != c.Scope ||
+			v.ExpiresAt == nil || !req.Now.Before(*v.ExpiresAt) || c.ExpiresAt.After(*v.ExpiresAt) {
 			continue
 		}
 		// Require the actual selected pool and provider-wide constraints.
@@ -128,4 +141,13 @@ func modelPoolAvailable(v quota.QuotaView, key string, now time.Time) bool {
 		}
 	}
 	return found
+}
+
+// paidAuthorized verifies the binding of a reservation issued atomically by
+// the host ledger. The ledger must revalidate/consume the ID before dispatch.
+func paidAuthorized(req SwitchRequest, c Account) bool {
+	r := c.Reservation
+	return req.AllowPaid && req.RunID != "" && r != nil && r.ID != "" && r.OwnerID == req.OwnerID &&
+		r.RunID == req.RunID && r.Scope == c.Scope && r.Model == c.Model && r.MaxMicroUSD > 0 &&
+		req.Now.Before(r.ExpiresAt)
 }

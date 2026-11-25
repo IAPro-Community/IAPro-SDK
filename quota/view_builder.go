@@ -15,6 +15,9 @@ import (
 // It detects model groups from the window Group field and assigns display labels.
 func BuildQuotaView(snap model.UsageSnapshot, account, plan string) QuotaView {
 	qv := QuotaView{
+		Scope:     snap.AccountScope,
+		ExpiresAt: snap.ExpiresAt,
+
 		Provider:  snap.ProviderID,
 		Profile:   snap.ProfileID,
 		Account:   account,

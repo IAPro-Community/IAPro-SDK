@@ -102,6 +102,11 @@ func ValidateCoordinationRequest(req CoordinationRequest) error {
 	if strings.TrimSpace(req.SourcePackageID) == "" {
 		return fmt.Errorf("coordination source_package_id is required")
 	}
+	for _, id := range []string{req.ID, req.RunID, req.SourcePackageID, req.SourceAgentID} {
+		if len(id) > maxCoordinationListItemBytes {
+			return fmt.Errorf("coordination identity exceeds %d bytes", maxCoordinationListItemBytes)
+		}
+	}
 	switch req.Operation {
 	case CoordinationNeedInfo, CoordinationDelegate, CoordinationArtifactRequest, CoordinationReviewRequest:
 	default:

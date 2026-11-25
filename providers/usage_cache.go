@@ -11,6 +11,7 @@ import (
 
 var ErrIdentityMismatch = errors.New("provider account identity could not be verified")
 var ErrProbeCapacity = errors.New("quota probe cache capacity reached")
+var ErrProbeFailed = errors.New("provider quota probe failed")
 
 // UsageCache coalesces probes per owner and verified credential generation.
 // The cache is process-local; it neither stores secrets nor authorizes dispatch.
@@ -105,6 +106,13 @@ func (c *UsageCache) GetUsage(ctx context.Context, a Account) (model.UsageSnapsh
 		c.mu.Unlock()
 
 		value, err := c.probe.GetUsage(ctx, a)
+		if err != nil {
+			if ctx.Err() != nil {
+				err = ctx.Err()
+			} else {
+				err = ErrProbeFailed
+			}
+		}
 		if err == nil {
 			err = c.verify(ctx, a)
 		}
