@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	stdruntime "runtime"
 	"strings"
 )
@@ -119,31 +120,36 @@ func EnhancedPATH(extraDirs ...string) string {
 
 // EnvSet applies environment overrides and removes unset keys from the base environment slice.
 func EnvSet(base []string, overrides map[string]string, unset ...string) []string {
-	unsetMap := make(map[string]bool)
-	for _, k := range unset {
-		unsetMap[k] = true
-	}
+	return envSetForOS(base, overrides, stdruntime.GOOS, unset...)
+}
 
-	overrideKeys := make(map[string]bool)
-	for k := range overrides {
-		overrideKeys[k] = true
+func envSetForOS(base []string, overrides map[string]string, goos string, unset ...string) []string {
+	normalize := func(key string) string {
+		if goos == "windows" {
+			return strings.ToUpper(key)
+		}
+		return key
 	}
-
+	blocked := make(map[string]bool)
+	for _, key := range unset {
+		blocked[normalize(key)] = true
+	}
+	keys := make([]string, 0, len(overrides))
+	for key := range overrides {
+		keys = append(keys, key)
+		blocked[normalize(key)] = true
+	}
+	sort.Strings(keys)
 	var out []string
 	for _, entry := range base {
-		parts := strings.SplitN(entry, "=", 2)
-		if len(parts) == 0 {
-			continue
-		}
-		k := parts[0]
-		if unsetMap[k] || overrideKeys[k] {
+		key, _, ok := strings.Cut(entry, "=")
+		if !ok || blocked[normalize(key)] {
 			continue
 		}
 		out = append(out, entry)
 	}
-
-	for k, v := range overrides {
-		out = append(out, k+"="+v)
+	for _, key := range keys {
+		out = append(out, key+"="+overrides[key])
 	}
 	return out
 }

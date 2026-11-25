@@ -49,6 +49,9 @@ var (
 
 // Classify inspects an error and output log to determine the failure kind and retry parameters.
 func Classify(err error, output string) model.Failure {
+	if err == nil {
+		return model.Failure{Kind: model.FailureNone}
+	}
 	combined := ""
 	if err != nil {
 		combined += err.Error() + "\n"

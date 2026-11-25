@@ -23,6 +23,9 @@ func EvaluateTransition(
 	now time.Time,
 	thresholds Thresholds,
 ) (State, string) {
+	if thresholds.Validate() != nil || now.IsZero() || observedAt.After(now) || (!expiresAt.IsZero() && !now.Before(expiresAt)) {
+		return StateUnknown, "invalid or expired observation"
+	}
 	if rateLimited {
 		return StateExhausted, "rate limit active"
 	}
@@ -31,7 +34,7 @@ func EvaluateTransition(
 		return StateUnknown, "no valid observation"
 	}
 
-	if math.IsNaN(*remaining) || math.IsInf(*remaining, 0) {
+	if math.IsNaN(*remaining) || math.IsInf(*remaining, 0) || *remaining > 100 {
 		return StateUnknown, "non-finite observation"
 	}
 

@@ -22,6 +22,8 @@ type Account struct {
 	TermsPermit     bool
 	ModelCompatible bool
 	Paid            bool
+	// Paid fallback needs a verified host budget reservation before selection.
+	BudgetReserved bool
 	ExpiresAt       time.Time
 
 	// QuotaScope is the identity bound to the observed quota, not the current login.
@@ -66,7 +68,7 @@ func SelectFallback(req SwitchRequest, candidates []Account) (Account, error) {
 		if !req.AllowOtherProvider && c.Scope.ProviderID != req.Source.ProviderID {
 			continue
 		}
-		if c.Paid && !req.AllowPaid {
+		if c.Paid && (!req.AllowPaid || !c.BudgetReserved) {
 			continue
 		}
 		// An automatic switch requires measured, unexpired evidence; manual
@@ -75,7 +77,7 @@ func SelectFallback(req SwitchRequest, candidates []Account) (Account, error) {
 		if v.Status != string(model.UsageLive) && v.Status != string(model.UsageCached) {
 			continue
 		}
-		if c.ExpiresAt.IsZero() || !req.Now.Before(c.ExpiresAt) || v.FetchedAt.IsZero() || v.FetchedAt.After(req.Now) {
+		if c.ExpiresAt.IsZero() || !req.Now.Before(c.ExpiresAt) || v.FetchedAt.IsZero() || v.FetchedAt.After(req.Now) || !c.ExpiresAt.After(v.FetchedAt) {
 			continue
 		}
 		if v.Provider != c.Scope.ProviderID || v.Profile != c.Scope.ProfileID || c.QuotaScope != c.Scope {

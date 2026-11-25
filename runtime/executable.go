@@ -72,14 +72,21 @@ func windowsCandidates(name string, getenv func(string) string, pathext []string
 		return withExtensions(name, pathext)
 	}
 	paths := splitPathList(getenv("PATH"), pathListSeparatorForGOOS(goos))
-	paths = append(paths,
-		filepath.Join(getenv("APPDATA"), "npm"),
-		filepath.Join(getenv("LOCALAPPDATA"), "Programs"),
-		filepath.Join(getenv("USERPROFILE"), "AppData", "Roaming", "npm"),
-	)
+	for _, candidate := range []struct {
+		key  string
+		tail []string
+	}{
+		{"APPDATA", []string{"npm"}},
+		{"LOCALAPPDATA", []string{"Programs"}},
+		{"USERPROFILE", []string{"AppData", "Roaming", "npm"}},
+	} {
+		if root := getenv(candidate.key); filepath.IsAbs(root) {
+			paths = append(paths, filepath.Join(append([]string{root}, candidate.tail...)...))
+		}
+	}
 	var candidates []string
 	for _, dir := range paths {
-		if strings.TrimSpace(dir) == "" {
+		if !filepath.IsAbs(dir) {
 			continue
 		}
 		candidates = append(candidates, withExtensions(filepath.Join(dir, name), pathext)...)

@@ -66,6 +66,10 @@ func EvaluateEligibility(in EligibilityInput) Eligibility {
 		out.Reason = ReasonAuthRequired
 		out.Message = "Autenticação necessária"
 		return out
+	case strings.ToLower(string(model.HealthRateLimited)):
+		out.Reason = ReasonRateLimited
+		out.Message = "Conta rate-limited"
+		return out
 	case strings.ToLower(string(model.HealthUnavailable)), "unavailable", "unhealthy":
 		out.Reason = ReasonUnavailable
 		out.Message = "Provedor indisponível"
@@ -136,6 +140,11 @@ func EvaluateEligibility(in EligibilityInput) Eligibility {
 		return out
 	}
 
+	if !in.ExplicitSelection && status != string(model.UsageLive) && status != string(model.UsageCached) {
+		out.Reason = ReasonUnknownQuota
+		out.Message = "Quota evidence is not measured"
+		return out
+	}
 	out.Eligible = true
 	out.Reason = ReasonOK
 	return out
