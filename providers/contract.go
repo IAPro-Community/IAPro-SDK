@@ -33,9 +33,9 @@ type Detection struct {
 }
 
 type Authentication struct {
-	Scope          model.AccountScope
+	Scope         model.AccountScope
 	Authenticated bool
-	ObservedAt     time.Time
+	ObservedAt    time.Time
 }
 
 // Adapter is the shared contract, not an execution authority. The host
