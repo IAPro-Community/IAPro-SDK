@@ -17,3 +17,6 @@
 
 - Rejeitar percentuais ausentes ou inválidos, proteger specs de mutação, exigir ausência de efeitos após reconciliação e clonar timestamps de coordenação.
 - Adicionar contrato neutro de adapters e normalização do resultado de quota Codex com identidade e bloqueio oficial.
+
+- Adicionar cache de quota isolado, runtime Codex JSONL e RPC, transições de handoff, lifecycle de coordenação, fencing por CAS, projeção de capacidade e evidências de custo.
+- Adicionar componentes React read-only e testes de renderização, com lockfile e typecheck.

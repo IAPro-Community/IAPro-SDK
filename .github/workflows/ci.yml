@@ -48,3 +48,19 @@ jobs:
         run: |
           cd "$(mktemp -d)"
           GOWORK=off go mod download -json github.com/IAPro-Community/IAPro-SDK@"$GITHUB_SHA"
+  react:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ui/react
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ui/react/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm pack --dry-run

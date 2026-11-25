@@ -33,3 +33,11 @@ SelectFallback exige QuotaScope derivado da observação original, e não copiad
 ## Contratos de adapters e gate de execução
 
 O pacote providers define portas neutras de descoberta, autenticação, quota, execução tipada e continuidade. Ainda não há implementação de subprocesso ou autenticação real nesses contratos. O parser Codex aceita somente o resultado de account/rateLimits/read, após o host comprovar home isolado e identidade externa; falta integrar transporte oficial e locks. Não confundir fixtures com homologação real.
+
+## Recorte de implementação S2–S6
+
+Codex: `providers/codex.RunExec` executa um plano de launch autorizado, stdin e stdout JSONL, sem retransmitir stderr ou executar retry. O decode emite mensagens de agente completas (não deltas de tokens), mede uso apenas quando turn.completed fornece ambos contadores e exige sucesso do processo. `StartStdioRPC` é transporte transiente; o host adquire lock de manutenção, cria processo com ambiente isolado e comprova identidade antes/depois. Protocolo quota-only em providers/parsers/codex. Ainda não há implementação real de auth/refresh e locks para todos os providers.
+
+`UsageCache` deduplica em processo, TTL/backoff, escopo completo de owner/identidade e revalidação de autenticação; o host deve obter identidade e geração confiáveis. `routing.AdvanceHandoff` é transição pura, persistência e efeitos idempotentes via host. `lease.Coordinator` exige CAS durável e fencing no ponto de escrita, não toma recurso expirado sem prova de quiescência; MemoryStore não coordena processos. `coordination.Admit/Resolve` exige autorização, run/turn/lineage e transação host. `capacity.Observe` projeta observações; scheduler e entrega de alertas permanecem do host. `cost.Summarize` mantém estimado/medido/unknown separados e rejeita duplicidade/overflow. UI React consome projeções, sem probes/routing. Testes herméticos não são certificação de provider real.
+
+Referência pública para Codex exec JSONL: https://developers.openai.com/blog/eval-skills. Nenhuma mudança no Nexus neste recorte.

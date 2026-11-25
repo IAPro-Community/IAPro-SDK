@@ -25,11 +25,14 @@ A base inicial é deliberadamente pequena. Módulos não implementados não deve
 | model / classifier / quota | Tipos, classificação de falhas e elegibilidade |
 | providers/spec | Contratos de seis CLIs e goldens; metadados de flags não são autorização de execução |
 | providers/parsers | Normalização de respostas Claude/Gemini/Codex já obtidas pelo host |
-| providers | Contratos de adapters, autenticação, uso e execução; ainda sem runtime completo |
-| runtime | Descoberta de binários e ambiente, sem executar providers |
-| routing | Motivo tipado e gate conservador de fallback; sem dispatch ou handoff |
-| coordination | Envelope de coordenação, validação e ID semântico; host controla autorização e persistência |
-| capacity | Thresholds, transições e fingerprint |
-| hud | DTOs e seleção de foco; sem widget ou probe |
+| providers | Contratos de adapters, cache de quota com escopo de identidade, execução e transporte Codex com launch autorizado |
+| runtime | Descoberta de binários e ambiente com isolamento de variáveis Windows |
+| routing | Gate de fallback e transições de handoff; execução, CAS e evidência pertencem ao host |
+| coordination | Envelope, admissão idempotente, limites, lineage e resolução; host persiste sob transação |
+| capacity | Thresholds, projeção de observações por identidade e transições |
+| hud | DTOs e seleção de foco, sem probe |
+| cost | Resumo de evidências de custo e validação de orçamento consultiva |
+| lease | Coordenação por CAS/fencing; store em memória para testes, store durável a cargo do host |
+| ui/react | AI Control, ProviderCard, CostPanel e HUD read-only; pacote privado até revisão de release |
 
 `go test ./...`, `go vet ./...`. Não utilizar flags de bypass de aprovação extraídas dos contratos como política de execução. Autorização, leases, orçamento e segurança permanecem no host. Adapters completos, transações de handoff, integração dos consumidores e UI ainda são gates em aberto.
