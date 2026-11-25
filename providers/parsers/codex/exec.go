@@ -2,6 +2,7 @@ package codex
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 
@@ -25,11 +26,11 @@ type ExecDecoder struct {
 	completed bool
 	failed    bool
 	count     int
-	messages  map[string]string
+	messages  map[[32]byte][32]byte
 }
 
 func NewExecDecoder(emit func(providers.Event) error) *ExecDecoder {
-	return &ExecDecoder{emit: emit, messages: make(map[string]string)}
+	return &ExecDecoder{emit: emit, messages: make(map[[32]byte][32]byte)}
 }
 
 func (d *ExecDecoder) Write(p []byte) (int, error) {
@@ -96,13 +97,15 @@ func (d *ExecDecoder) consume(line []byte) error {
 		if e.Item.ID == "" {
 			return ErrInvalidEvent
 		}
-		if previous, ok := d.messages[e.Item.ID]; ok {
-			if previous != e.Item.Text {
+		id := sha256.Sum256([]byte(e.Item.ID))
+		text := sha256.Sum256([]byte(e.Item.Text))
+		if previous, ok := d.messages[id]; ok {
+			if previous != text {
 				return ErrInvalidEvent
 			}
 			return nil
 		}
-		d.messages[e.Item.ID] = e.Item.Text
+		d.messages[id] = text
 		if d.emit != nil {
 			return d.emit(providers.Event{Kind: providers.EventText, Text: e.Item.Text})
 		}
