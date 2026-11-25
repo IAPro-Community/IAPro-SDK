@@ -43,3 +43,7 @@ Codex: `providers/codex.RunExec` executa um plano de launch autorizado, stdin e 
 Referência pública para Codex exec JSONL: https://developers.openai.com/blog/eval-skills. Nenhuma mudança no Nexus neste recorte.
 
 O fallback pago agora exige reserva do ledger vinculada ao owner, run, escopo, modelo, valor e expiração; o host deve consumir a reserva atomicamente antes do dispatch. O QuotaView transporta identidade e expiração originais do snapshot. Sem esses campos o fallback automático é inelegível.
+
+## Runtime estruturado compartilhado
+
+`providers/process.Run` centraliza stdin, cancelamento, execução e sanitização de falhas. Codex e Gemini usam o mesmo runner, com decoders independentes. Gemini usa `--output-format stream-json` (https://geminicli.com/docs/cli/headless/), emite apenas mensagens de assistente e exige result.status=success, sessão e saída, além do exit code zero. Contadores ausentes/inválidos continuam desconhecidos. Fixture de subprocesso não certifica versão ou autenticação real. O host precisa validar launch e política; não habilitar provider automaticamente.

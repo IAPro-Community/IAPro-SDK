@@ -20,3 +20,5 @@
 
 - Adicionar cache de quota isolado, runtime Codex JSONL e RPC, transições de handoff, lifecycle de coordenação, fencing por CAS, projeção de capacidade e evidências de custo.
 - Adicionar componentes React read-only e testes de renderização, com lockfile e typecheck.
+
+- Consolidar execução estruturada em providers/process e adicionar decoder/runtime Gemini stream-json com fixtures, terminal obrigatório e contadores opcionais.
