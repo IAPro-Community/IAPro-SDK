@@ -46,6 +46,9 @@ func RunExec(ctx context.Context, launch Launch, prompt string, emit func(provid
 	cmd.Stderr = io.Discard
 	cmd.WaitDelay = 2 * time.Second
 	runErr := cmd.Run()
+	if cmd.Process == nil {
+		return providers.RunResult{}, ErrLaunch
+	}
 	result, decodeErr := d.Finish()
 	if ctx.Err() != nil {
 		return result, ctx.Err()

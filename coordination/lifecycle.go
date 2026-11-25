@@ -23,10 +23,10 @@ type Admission struct {
 	Depth        int
 	MaxDepth     int
 	// Ancestors are trusted task IDs in the current delegation lineage.
-	Ancestors []string
+	Ancestors    []string
 	TargetTaskID string
 	// Existing is the set of requests in this run (all statuses).
-	Existing []CoordinationRequest
+	Existing  []CoordinationRequest
 	TurnCount int
 }
 

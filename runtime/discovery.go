@@ -7,8 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	stdruntime "runtime"
+	"sort"
 	"strings"
 )
 

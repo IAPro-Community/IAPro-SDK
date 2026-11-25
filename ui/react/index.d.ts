@@ -22,6 +22,7 @@ export interface HUDProvider {
 export interface HUDCostSummary {
   evidence: string;
   known_microusd?: number | null;
+  known_observation_count?: number;
   estimated_microusd?: number | null;
   unknown_observation_count?: number;
   budget_level?: string;

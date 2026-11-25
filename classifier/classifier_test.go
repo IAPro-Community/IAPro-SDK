@@ -101,3 +101,9 @@ func TestRetryDurationBounds(t *testing.T) {
 		t.Errorf("valid retry returned %v", got)
 	}
 }
+
+func TestSuccessfulExitIsNotFailure(t *testing.T) {
+	if got := Classify(nil, "rate limit exceeded in an example"); got.Kind != model.FailureNone {
+		t.Fatal("successful command classified as provider failure")
+	}
+}

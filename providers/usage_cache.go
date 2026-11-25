@@ -46,7 +46,7 @@ func (c *UsageCache) verify(ctx context.Context, a Account) error {
 		return err
 	}
 	auth, err := c.auth.InspectAuth(ctx, a)
-	if err != nil || !auth.Authenticated || auth.Scope != a.Scope || auth.ObservedAt.IsZero() || auth.ObservedAt.After(c.now()) {
+	if err != nil || !auth.Authenticated || auth.Scope != a.Scope || auth.ObservedAt.IsZero() || auth.ObservedAt.After(c.now()) || c.now().Sub(auth.ObservedAt) >= c.ttl {
 		return ErrIdentityMismatch
 	}
 	return ctx.Err()

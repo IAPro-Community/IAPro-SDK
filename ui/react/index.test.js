@@ -30,3 +30,10 @@ test("cost evidence and backend focus are not fabricated", () => {
   assert.doesNotMatch(html, /\$0/);
   assert.match(renderToStaticMarkup(h(AIControl, { state: {} })), /No provider accounts/);
 });
+
+test("partial and estimated zero do not claim measured zero", () => {
+  const state = { providers: [], cost: { evidence: "ESTIMATED", known_microusd: 0, estimated_microusd: 1000000 } };
+  const html = renderToStaticMarkup(h(AIControl, { state, locale: "en-US" }));
+  assert.match(html, /Measured cost<\/dt><dd>Unknown/);
+  assert.match(html, /Estimated cost<\/dt><dd>\$1.00/);
+});

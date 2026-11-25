@@ -23,7 +23,7 @@ type Account struct {
 	ModelCompatible bool
 	Paid            bool
 	// Paid fallback needs a verified host budget reservation before selection.
-	BudgetReserved bool
+	BudgetReserved  bool
 	ExpiresAt       time.Time
 
 	// QuotaScope is the identity bound to the observed quota, not the current login.

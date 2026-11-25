@@ -58,7 +58,7 @@ export function CostPanel({ summary, labels, locale }) {
     summary == null || ["EMPTY", "ATTRIBUTION_ONLY", "UNKNOWN"].includes(summary.evidence)
       ? h("p", null, l.unknown)
       : h("dl", null,
-          h("dt", null, l.knownCost), h("dd", null, money(summary.known_microusd, l.unknown, locale)),
+          h("dt", null, l.knownCost), h("dd", null, summary.evidence === "MEASURED" || summary.known_observation_count > 0 || summary.known_microusd > 0 ? money(summary.known_microusd, l.unknown, locale) : l.unknown),
           summary.estimated_microusd == null ? null : h("dt", null, l.estimatedCost),
           summary.estimated_microusd == null ? null : h("dd", null, money(summary.estimated_microusd, l.unknown, locale)),
           h("dt", null, l.unknownCost), h("dd", null, summary.unknown_observation_count ?? l.unknown),
