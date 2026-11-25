@@ -25,7 +25,7 @@ A base inicial é deliberadamente pequena. Módulos não implementados não deve
 | model / classifier / quota | Tipos, classificação de falhas e elegibilidade |
 | providers/spec | Contratos de seis CLIs e goldens; metadados de flags não são autorização de execução |
 | providers/parsers | Normalização de respostas Claude/Gemini/Codex já obtidas pelo host |
-| providers | Contratos de adapters, cache de quota com escopo de identidade, execução Codex/Gemini e transporte RPC Codex com launch autorizado |
+| providers | Contratos de adapters, cache de quota com escopo de identidade, execução Codex/Gemini/Claude e transporte RPC Codex com launch autorizado |
 | runtime | Descoberta de binários e ambiente com isolamento de variáveis Windows |
 | routing | Gate de fallback e transições de handoff; execução, CAS e evidência pertencem ao host |
 | coordination | Envelope, admissão idempotente, limites, lineage e resolução; host persiste sob transação |
@@ -42,7 +42,7 @@ A base inicial é deliberadamente pequena. Módulos não implementados não deve
 | Provider | Specs/discovery | Parser quota | Execução estruturada | Auth/refresh e sessão real |
 |---|---|---|---|---|
 | Codex | fixtures | parser e RPC via host | runtime JSONL e fixture subprocesso | login status + atribuição local; homologação pendente |
-| Claude | fixtures | parser | pendente | pendente |
+| Claude | fixtures | parser | runtime stream-json (single-shot novo) e fixture subprocesso | pendente |
 | Gemini | fixtures | parser | runtime stream-json e fixture subprocesso | pendente |
 | AGY | fixtures | pendente | pendente | pendente |
 | OpenCode | fixtures | não comprovado | pendente | pendente |

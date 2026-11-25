@@ -22,3 +22,5 @@
 - Adicionar componentes React read-only e testes de renderização, com lockfile e typecheck.
 
 - Consolidar execução estruturada em providers/process e adicionar decoder/runtime Gemini stream-json com fixtures, terminal obrigatório e contadores opcionais.
+
+- Compartilhar framing JSONL bounded/sticky e adicionar runtime Claude Code para sessão nova single-shot, uso agregado por modelo e fixtures.
