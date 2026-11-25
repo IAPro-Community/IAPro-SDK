@@ -50,7 +50,6 @@ func claudeUsageWindows(usage claudeUsageResponse) []model.UsageWindow {
 	return windows
 }
 
-
 // ParseUsage decodes a quota response already retrieved by an authorized host.
 func ParseUsage(raw []byte) ([]model.UsageWindow, error) {
 	var response claudeUsageResponse

@@ -77,7 +77,6 @@ func parseRemainingAmount(raw json.RawMessage) (float64, bool) {
 	return amount, err == nil && !math.IsNaN(amount) && !math.IsInf(amount, 0) && amount >= 0
 }
 
-
 // ParseUsage decodes a quota response already retrieved by an authorized host.
 func ParseUsage(raw []byte) ([]model.UsageWindow, error) {
 	var response geminiQuotaResponse

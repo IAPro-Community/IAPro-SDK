@@ -31,7 +31,7 @@ type rateBucket struct {
 type rateResponse struct {
 	OrdinaryUsageAllowed *bool                 `json:"ordinaryUsageAllowed"`
 	RateLimits           rateBucket            `json:"rateLimits"`
-	RateLimitsByLimitID  map[string]rateBucket `json:"rateLimitsByLimitId"`
+	RateLimitsByLimitID   map[string]rateBucket `json:"rateLimitsByLimitId"`
 	AccountID            *string               `json:"accountId"`
 }
 
