@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/IAPro-Community/IAPro-SDK/model"
+	"github.com/IAPro-Community/IAPro-SDK/providers/spec"
 )
 
 // QuotaView is the omnibus view model for quota display and scoring.
@@ -19,16 +20,18 @@ type QuotaView struct {
 	Scope     model.AccountScope `json:"account_scope"`
 	ExpiresAt *time.Time         `json:"expires_at,omitempty"`
 
-	Provider     string       `json:"provider"`
-	Profile      string       `json:"profile"`
-	Account      string       `json:"account"`
-	Plan         string       `json:"plan"`
-	Status       string       `json:"status"`
-	Source       string       `json:"source"`
-	ModelGroups  []ModelGroup `json:"model_groups"`
-	FetchedAt    time.Time    `json:"fetched_at"`
-	Available    bool         `json:"available"`
-	AvailReasons AvailReasons `json:"avail_reasons"`
+	Provider          string       `json:"provider"`
+	Profile           string       `json:"profile"`
+	Account           string       `json:"account"`
+	Plan              string       `json:"plan"`
+	Status            string       `json:"status"`
+	Source            string       `json:"source"`
+	ModelGroups       []ModelGroup `json:"model_groups"`
+	FetchedAt         time.Time    `json:"fetched_at"`
+	Available         bool         `json:"available"`
+	AvailReasons      AvailReasons `json:"avail_reasons"`
+	DiagnosticCode    string       `json:"diagnostic_code,omitempty"`
+	DiagnosticMessage string       `json:"diagnostic_message,omitempty"`
 }
 
 // AvailReasons holds structured reasons for availability status.
@@ -41,12 +44,13 @@ type AvailReasons struct {
 }
 
 // ModelGroup clusters usage windows by model family.
-// A provider like AGY exposes two groups (Gemini, Claude/GPT).
-// Simpler providers have a single unnamed group.
+// A provider like AGY exposes two groups (Gemini as primary, Claude/GPT as auxiliary).
+// Simpler providers have a single primary group.
 type ModelGroup struct {
-	Key     string   `json:"key,omitempty"` // stable identity: gemini, claude_gpt, …
-	Name    string   `json:"name"`
-	Windows []Window `json:"windows"`
+	Key     string         `json:"key,omitempty"` // stable identity: gemini, claude_gpt, …
+	Name    string         `json:"name"`
+	Tier    spec.GroupTier `json:"tier,omitempty"`
+	Windows []Window       `json:"windows"`
 }
 
 // Window is a display-ready usage window within a model group.
@@ -92,9 +96,13 @@ func (qv *QuotaView) Bottleneck() (float64, string) {
 // has no scorable windows. Windows whose reset time is already past are ignored
 // (the quota window has rolled over; stale used% must not look like exhaustion).
 func (g ModelGroup) GroupRemaining() (remaining float64, ok bool) {
+	return g.GroupRemainingAt(time.Now())
+}
+
+// GroupRemainingAt returns the capacity of one model group at the caller's clock.
+func (g ModelGroup) GroupRemainingAt(now time.Time) (remaining float64, ok bool) {
 	minPct := 100.0
 	found := false
-	now := time.Now()
 	for _, w := range g.Windows {
 		if w.Kind == "unknown" || windowExpired(w, now) {
 			continue
@@ -110,6 +118,14 @@ func (g ModelGroup) GroupRemaining() (remaining float64, ok bool) {
 	return minPct, true
 }
 
+// EffectiveTier returns the group's tier, defaulting to GroupTierPrimary.
+func (g ModelGroup) EffectiveTier() spec.GroupTier {
+	if g.Tier == spec.GroupTierAuxiliary {
+		return spec.GroupTierAuxiliary
+	}
+	return spec.GroupTierPrimary
+}
+
 func windowExpired(w Window, now time.Time) bool {
 	return w.ResetTime != nil && !now.Before(*w.ResetTime)
 }
@@ -118,10 +134,15 @@ func windowExpired(w Window, now time.Time) bool {
 // group's GroupRemaining. Independent families (AGY Gemini vs Claude) do not
 // cancel each other; a single-pool provider (Codex) collapses to min(5h, weekly).
 func (qv *QuotaView) BestGroupRemaining() (remaining float64, ok bool) {
+	return qv.BestGroupRemainingAt(time.Now())
+}
+
+// BestGroupRemainingAt returns the max remaining capacity across all groups at now.
+func (qv *QuotaView) BestGroupRemainingAt(now time.Time) (remaining float64, ok bool) {
 	best := 0.0
 	found := false
 	for _, g := range qv.ModelGroups {
-		rem, groupOK := g.GroupRemaining()
+		rem, groupOK := g.GroupRemainingAt(now)
 		if !groupOK {
 			continue
 		}
@@ -131,6 +152,78 @@ func (qv *QuotaView) BestGroupRemaining() (remaining float64, ok bool) {
 		}
 	}
 	return best, found
+}
+
+// PrimaryGroupRemaining returns the best remaining percentage among primary model groups.
+func (qv *QuotaView) PrimaryGroupRemaining() (remaining float64, ok bool) {
+	return qv.PrimaryGroupRemainingAt(time.Now())
+}
+
+// PrimaryGroupRemainingAt returns the best remaining percentage among primary groups at now.
+func (qv *QuotaView) PrimaryGroupRemainingAt(now time.Time) (remaining float64, ok bool) {
+	return qv.tierRemainingAt(spec.GroupTierPrimary, now)
+}
+
+// AuxiliaryGroupRemaining returns the best remaining percentage among auxiliary model groups.
+func (qv *QuotaView) AuxiliaryGroupRemaining() (remaining float64, ok bool) {
+	return qv.AuxiliaryGroupRemainingAt(time.Now())
+}
+
+// AuxiliaryGroupRemainingAt returns the best remaining percentage among auxiliary groups at now.
+func (qv *QuotaView) AuxiliaryGroupRemainingAt(now time.Time) (remaining float64, ok bool) {
+	return qv.tierRemainingAt(spec.GroupTierAuxiliary, now)
+}
+
+func (qv *QuotaView) tierRemainingAt(tier spec.GroupTier, now time.Time) (remaining float64, ok bool) {
+	if qv == nil {
+		return 0, false
+	}
+	best := 0.0
+	found := false
+	for _, g := range qv.ModelGroups {
+		if g.EffectiveTier() != tier {
+			continue
+		}
+		rem, groupOK := g.GroupRemainingAt(now)
+		if !groupOK {
+			continue
+		}
+		if !found || rem > best {
+			best = rem
+			found = true
+		}
+	}
+	return best, found
+}
+
+// GroupRemainingForKeyAt returns the remaining capacity for a specific group key.
+func (qv *QuotaView) GroupRemainingForKeyAt(groupKey string, now time.Time) (remaining float64, ok bool) {
+	if qv == nil {
+		return 0, false
+	}
+	target := strings.ToLower(strings.TrimSpace(groupKey))
+	for _, g := range qv.ModelGroups {
+		if strings.ToLower(strings.TrimSpace(g.Key)) == target {
+			return g.GroupRemainingAt(now)
+		}
+	}
+	return 0, false
+}
+
+// NeedsResetReprobeAt reports whether any previously recorded window has reached
+// its ResetTime by now, indicating cached exhaustion should be refreshed.
+func (qv *QuotaView) NeedsResetReprobeAt(now time.Time) bool {
+	if qv == nil {
+		return false
+	}
+	for _, g := range qv.ModelGroups {
+		for _, w := range g.Windows {
+			if w.ResetTime != nil && !now.Before(*w.ResetTime) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // UsableGroupCount returns how many model groups still have capacity (> 0).
@@ -159,42 +252,231 @@ func (qv *QuotaView) TotalGroupRemaining() (total float64, groups int) {
 	return total, groups
 }
 
-// EffectiveCapacityScore encodes "most available" for scheduling:
-// primary = usable group count, secondary = average group remaining.
-// Formula: usableGroups*100 + totalGroupRemaining/max(numGroups,1)
-// so AGY with 2 live families always beats AGY with 1 live family at 100%.
+// EffectiveCapacityScore encodes "most available" for tier-aware scheduling:
+// primary quotas (>0%) occupy [1000..2001] and always beat auxiliary-only quotas
+// (0..100]. Within the primary tier, higher primary remaining always wins;
+// auxiliary capacity serves only as a tiny tie-breaker.
 func (qv *QuotaView) EffectiveCapacityScore() (score float64, ok bool) {
-	total, groups := qv.TotalGroupRemaining()
-	if groups == 0 {
+	return qv.EffectiveCapacityScoreAt(time.Now())
+}
+
+// EffectiveCapacityScoreAt computes the tier-aware scheduling score at now.
+func (qv *QuotaView) EffectiveCapacityScoreAt(now time.Time) (score float64, ok bool) {
+	primRem, primOK := qv.PrimaryGroupRemainingAt(now)
+	auxRem, auxOK := qv.AuxiliaryGroupRemainingAt(now)
+	if !primOK && !auxOK {
 		return 0, false
 	}
-	avg := total / float64(groups)
-	return float64(qv.UsableGroupCount())*100.0 + avg, true
+	if primOK && primRem > 0 {
+		tie := 0.0
+		if auxOK && auxRem > 0 {
+			tie = auxRem * 0.001
+		}
+		return 1000.0 + primRem*10.0 + tie, true
+	}
+	if auxOK && auxRem > 0 {
+		return auxRem, true
+	}
+	return 0, true
+}
+
+// CompareCapacityAt compares two QuotaViews with tier-first ordering.
+// Returns > 0 if qv has strictly better available capacity than other.
+func (qv *QuotaView) CompareCapacityAt(other *QuotaView, now time.Time) int {
+	s1, ok1 := qv.EffectiveCapacityScoreAt(now)
+	s2, ok2 := other.EffectiveCapacityScoreAt(now)
+	switch {
+	case ok1 && !ok2:
+		return 1
+	case !ok1 && ok2:
+		return -1
+	case !ok1 && !ok2:
+		return 0
+	case s1 > s2:
+		return 1
+	case s1 < s2:
+		return -1
+	default:
+		return 0
+	}
 }
 
 // EffectiveCapacityRatio normalizes EffectiveCapacityScore to 0-1 for APIs
-// that expect quota_remaining in that range.
+// that expect quota_remaining in that range (primary remaining when available,
+// otherwise auxiliary remaining).
 func (qv *QuotaView) EffectiveCapacityRatio() (ratio float64, ok bool) {
-	score, ok := qv.EffectiveCapacityScore()
-	if !ok {
-		return 0, false
+	return qv.EffectiveCapacityRatioAt(time.Now())
+}
+
+// EffectiveCapacityRatioAt returns the normalized 0..1 capacity ratio at now.
+func (qv *QuotaView) EffectiveCapacityRatioAt(now time.Time) (ratio float64, ok bool) {
+	primRem, primOK := qv.PrimaryGroupRemainingAt(now)
+	if primOK && primRem > 0 {
+		return clampUnit(primRem / 100.0), true
 	}
-	_, groups := qv.TotalGroupRemaining()
-	if groups == 0 {
-		return 0, false
+	auxRem, auxOK := qv.AuxiliaryGroupRemainingAt(now)
+	if auxOK && auxRem > 0 {
+		return clampUnit(auxRem / 100.0), true
 	}
-	maxScore := float64(groups)*100.0 + 100.0
-	if maxScore <= 0 {
-		return 0, false
+	if primOK || auxOK {
+		return 0, true
 	}
-	ratio = score / maxScore
-	if ratio < 0 {
-		ratio = 0
+	return 0, false
+}
+
+func clampUnit(v float64) float64 {
+	if v < 0 {
+		return 0
 	}
-	if ratio > 1 {
-		ratio = 1
+	if v > 1 {
+		return 1
 	}
-	return ratio, true
+	return v
+}
+
+// QuotaTruthState is the canonical cross-surface state consumed by CLI, TUI, and Web.
+type QuotaTruthState string
+
+const (
+	TruthConfirmed       QuotaTruthState = "confirmed"
+	TruthStale           QuotaTruthState = "stale"
+	TruthExhausted       QuotaTruthState = "exhausted"
+	TruthRateLimited     QuotaTruthState = "rate_limited"
+	TruthUnknown         QuotaTruthState = "unknown"
+	TruthUnauthenticated QuotaTruthState = "unauthenticated"
+	TruthUnsupported     QuotaTruthState = "unsupported"
+)
+
+// QuotaProjection is the canonical read model shared across CLI, TUI, and Web.
+type QuotaProjection struct {
+	TruthState         QuotaTruthState `json:"truth_state"`
+	Available          bool            `json:"available"`
+	PrimaryAvailable   bool            `json:"primary_available"`
+	AuxiliaryOnly      bool            `json:"auxiliary_only"`
+	ActiveTier         spec.GroupTier  `json:"active_tier,omitempty"`
+	PrimaryRemaining   *float64        `json:"primary_remaining,omitempty"`
+	AuxiliaryRemaining *float64        `json:"auxiliary_remaining,omitempty"`
+	EffectiveRemaining *float64        `json:"effective_remaining,omitempty"`
+	BottleneckKind     string          `json:"bottleneck_kind,omitempty"`
+	CompactSummary     string          `json:"compact_summary,omitempty"`
+	DiagnosticCode     string          `json:"diagnostic_code,omitempty"`
+	DiagnosticMessage  string          `json:"diagnostic_message,omitempty"`
+	FreshnessSeconds   int64           `json:"freshness_seconds,omitempty"`
+	NeedsResetReprobe  bool            `json:"needs_reset_reprobe,omitempty"`
+	RankScore          float64         `json:"rank_score"`
+}
+
+// ProjectionAt builds the single canonical QuotaProjection for any UI or router.
+func (qv *QuotaView) ProjectionAt(now time.Time, ttl time.Duration, authenticated bool, health string) QuotaProjection {
+	out := QuotaProjection{
+		TruthState: TruthUnknown,
+	}
+	if qv == nil {
+		if !authenticated {
+			out.TruthState = TruthUnauthenticated
+			out.RankScore = -500
+		} else {
+			out.RankScore = -400
+		}
+		return out
+	}
+
+	view := *qv
+	view.ComputeAvailabilityAt(now)
+	out.DiagnosticCode = view.DiagnosticCode
+	out.DiagnosticMessage = view.DiagnosticMessage
+	out.CompactSummary = view.CompactGroupSummary()
+	_, out.BottleneckKind = view.Bottleneck()
+	out.NeedsResetReprobe = view.NeedsResetReprobeAt(now)
+	if !view.FetchedAt.IsZero() {
+		age := int64(now.Sub(view.FetchedAt).Seconds())
+		if age < 0 {
+			age = 0
+		}
+		out.FreshnessSeconds = age
+	}
+
+	primRem, primOK := view.PrimaryGroupRemainingAt(now)
+	if primOK {
+		v := primRem
+		out.PrimaryRemaining = &v
+		if v > 0 {
+			out.PrimaryAvailable = true
+		}
+	}
+	auxRem, auxOK := view.AuxiliaryGroupRemainingAt(now)
+	if auxOK {
+		v := auxRem
+		out.AuxiliaryRemaining = &v
+	}
+
+	if out.PrimaryAvailable {
+		v := primRem
+		out.EffectiveRemaining = &v
+		out.ActiveTier = spec.GroupTierPrimary
+	} else if auxOK && auxRem > 0 {
+		v := auxRem
+		out.EffectiveRemaining = &v
+		out.AuxiliaryOnly = true
+		out.ActiveTier = spec.GroupTierAuxiliary
+	} else if primOK {
+		zero := 0.0
+		out.EffectiveRemaining = &zero
+	}
+
+	normHealth := strings.ToLower(strings.TrimSpace(health))
+	status := strings.ToUpper(strings.TrimSpace(view.Status))
+
+	if !authenticated || normHealth == strings.ToLower(string(model.HealthAuthRequired)) || normHealth == "auth_required" || view.AvailReasons.AuthRequired {
+		out.TruthState = TruthUnauthenticated
+		out.Available = false
+		out.RankScore = -500
+		return out
+	}
+	if status == string(model.UsageRateLimited) || view.AvailReasons.RateLimited || normHealth == strings.ToLower(string(model.HealthRateLimited)) {
+		out.TruthState = TruthRateLimited
+		out.Available = false
+		out.RankScore = -350
+		return out
+	}
+	if status == string(model.UsageUnsupported) {
+		out.TruthState = TruthUnsupported
+		out.Available = view.Available
+		out.RankScore = -200
+		return out
+	}
+	if status == string(model.UsageUnknown) || status == string(model.UsageError) || view.AvailReasons.UnknownQuota || (!primOK && !auxOK) {
+		out.TruthState = TruthUnknown
+		out.Available = false
+		out.RankScore = -400
+		return out
+	}
+	if !view.Available || (!out.PrimaryAvailable && (!auxOK || auxRem <= 0)) {
+		out.TruthState = TruthExhausted
+		out.Available = false
+		out.RankScore = -300
+		return out
+	}
+
+	out.Available = true
+	stale := status == string(model.UsageEstimated) || out.NeedsResetReprobe
+	if !stale && ttl > 0 {
+		if view.FetchedAt.IsZero() || now.Sub(view.FetchedAt) > ttl {
+			stale = true
+		}
+	}
+	if status == string(model.UsageLive) && !stale {
+		out.TruthState = TruthConfirmed
+	} else if status == string(model.UsageCached) && !stale {
+		out.TruthState = TruthConfirmed
+	} else {
+		out.TruthState = TruthStale
+	}
+
+	if score, ok := view.EffectiveCapacityScoreAt(now); ok {
+		out.RankScore = score
+	}
+	return out
 }
 
 // CompactGroupSummary lists each group's capacity for compact UIs

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/IAPro-Community/IAPro-SDK/runtime"
 )
@@ -14,6 +15,10 @@ import (
 var agySpec = Spec{
 	ClearLine:        "\x15",
 	ID:               "agy",
+	DisplayName:      "Antigravity (AGY)",
+	ShortBadge:       "AGY",
+	InstallGuideURL:  "https://antigravity.google",
+	AuthKind:         AuthKindOAuthCLI,
 	BinaryCandidates: []string{"agy"},
 	EnvKeys: func(profileHome, binDir, profileName string) map[string]string {
 		pathBins := []string{binDir}
@@ -48,4 +53,44 @@ var agySpec = Spec{
 	ReviewMode:    nil,
 	Quota:         QuotaLiveCLI,
 	KnownVersions: []string{"1.0.0"},
+	ModelGroups: []ModelGroupSpec{
+		{
+			Key:             "gemini",
+			DisplayName:     "Gemini Models",
+			Tier:            GroupTierPrimary,
+			Aliases:         []string{"gemini"},
+			RequiredWindows: []string{"5h"},
+		},
+		{
+			Key:             "claude_gpt",
+			DisplayName:     "Claude & GPT Models",
+			Tier:            GroupTierAuxiliary,
+			Aliases:         []string{"claude", "gpt", "opus", "sonnet", "haiku"},
+			RequiredWindows: []string{"claude_5h"},
+		},
+	},
+	QuotaPolicy: QuotaPolicy{
+		DefaultTTL:            5 * time.Minute,
+		ProbeTimeout:          8 * time.Second,
+		Requires5hForBalanced: true,
+	},
+	HistorySyncPolicy: HistorySyncPolicy{
+		Mode:       HistorySyncLink,
+		RootSubdir: ".gemini",
+		SharedPaths: []string{
+			"antigravity-cli/brain",
+			"antigravity-cli/conversations",
+			"antigravity-cli/conversation_summaries.db",
+			"antigravity-cli/history.jsonl",
+			"antigravity-cli/knowledge",
+			"antigravity-cli/installed_extensions.json",
+			"antigravity-cli/customizations",
+		},
+		CredentialPaths: []string{
+			"antigravity-cli/antigravity-oauth-token",
+			"antigravity-cli/antigravity-oauth-token.bak",
+			"antigravity-cli/installation_id",
+			"antigravity-cli/settings.json",
+		},
+	},
 }

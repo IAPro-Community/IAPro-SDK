@@ -120,19 +120,20 @@ type UsageWindow struct {
 
 // UsageSnapshot captures point-in-time usage metrics for a profile.
 type UsageSnapshot struct {
-	ProviderID   string          `json:"provider_id"`
-	ProfileID    string          `json:"profile_id"`
-	Status       UsageStatus     `json:"status"`
-	Source       UsageSource     `json:"source"`
-	Confidence   UsageConfidence `json:"confidence,omitempty"`
-	FetchedAt    time.Time       `json:"fetched_at"`
-	ExpiresAt    *time.Time      `json:"expires_at,omitempty"`
-	Windows      []UsageWindow   `json:"windows"`
-	ModelName    string          `json:"model_name,omitempty"`
-	Account      string          `json:"account,omitempty"`
-	Plan         string          `json:"plan,omitempty"`
-	Error        string          `json:"error,omitempty"`
-	AccountScope AccountScope    `json:"account_scope,omitempty"`
+	ProviderID     string          `json:"provider_id"`
+	ProfileID      string          `json:"profile_id"`
+	Status         UsageStatus     `json:"status"`
+	Source         UsageSource     `json:"source"`
+	Confidence     UsageConfidence `json:"confidence,omitempty"`
+	FetchedAt      time.Time       `json:"fetched_at"`
+	ExpiresAt      *time.Time      `json:"expires_at,omitempty"`
+	Windows        []UsageWindow   `json:"windows"`
+	ModelName      string          `json:"model_name,omitempty"`
+	Account        string          `json:"account,omitempty"`
+	Plan           string          `json:"plan,omitempty"`
+	Error          string          `json:"error,omitempty"`
+	DiagnosticCode string          `json:"diagnostic_code,omitempty"`
+	AccountScope   AccountScope    `json:"account_scope,omitempty"`
 }
 
 // Capabilities declares supported features for a provider adapter.
