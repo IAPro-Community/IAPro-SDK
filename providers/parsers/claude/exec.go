@@ -12,7 +12,7 @@ import (
 )
 
 var ErrInvalidEvent = errors.New("invalid Claude Code JSONL event")
-var ErrIncompleteTurn = errors.New("Claude Code turn lacks successful terminal evidence")
+var ErrIncompleteTurn = errors.New("claude code turn lacks successful terminal evidence")
 
 // ExecDecoder supports single-shot, fresh Claude Code sessions only. It
 // consumes complete root assistant messages; partial events, tool payloads,

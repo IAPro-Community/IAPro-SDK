@@ -201,7 +201,7 @@ func LoadTariffFile(path string) (TariffTable, error) {
 	if err != nil {
 		return TariffTable{}, errors.New("cannot open tariff file")
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	opened, err := f.Stat()
 	if err != nil || !opened.Mode().IsRegular() || !os.SameFile(info, opened) {
 		return TariffTable{}, errors.New("tariff file changed")

@@ -29,7 +29,7 @@ func ExternalAccountID(raw []byte) (string, error) {
 		} `json:"tokens"`
 	}
 	if json.Unmarshal(raw, &auth) != nil || strings.TrimSpace(auth.Tokens.AccountID) == "" {
-		return "", errors.New("Codex account identity unavailable")
+		return "", errors.New("codex account identity unavailable")
 	}
 	return strings.TrimSpace(auth.Tokens.AccountID), nil
 }

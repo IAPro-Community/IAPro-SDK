@@ -23,7 +23,7 @@ func Probe(ctx context.Context, rpc RPC, scope model.AccountScope, expectedAccou
 	if rpc == nil {
 		return model.UsageSnapshot{}, errors.New("codex quota transport required")
 	}
-	defer rpc.Close()
+	defer func() { _ = rpc.Close() }()
 	if sameHome == nil || now == nil || expectedHome == "" || expectedAccount == "" || scope.ProviderID != "codex" || !scope.Verifiable() {
 		return model.UsageSnapshot{}, errors.New("codex probe identity required")
 	}

@@ -10,10 +10,8 @@ import (
 	"github.com/IAPro-Community/IAPro-SDK/providers/jsonl"
 )
 
-const maxEventBytes = jsonl.MaxEventBytes
-
 var ErrInvalidEvent = errors.New("invalid Gemini JSONL event")
-var ErrIncompleteTurn = errors.New("Gemini turn lacks a successful result")
+var ErrIncompleteTurn = errors.New("gemini turn lacks a successful result")
 
 // ExecDecoder consumes Gemini CLI stream-json output. Only assistant message
 // content is emitted; prompts, tool arguments, tool output and raw errors are

@@ -46,7 +46,7 @@ func TestManagedLeaseDoesNotReclaimAmbiguousGeneration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer next.Finish(true)
+	defer func() { _ = next.Finish(true) }()
 	if next.Fence() <= g.Fence() {
 		t.Fatal("fence did not advance")
 	}
@@ -74,7 +74,7 @@ func TestManagedRenewalFailureCancelsWorkAndRetainsFence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer g.Finish(false)
+	defer func() { _ = g.Finish(false) }()
 	store.fail.Store(true)
 	select {
 	case <-g.Context().Done():
@@ -99,7 +99,7 @@ func TestManagedWaitIsCancelableAndReleaseIgnoresCallerCancellation(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer g.Finish(true)
+	defer func() { _ = g.Finish(true) }()
 	waitCtx, stop := context.WithCancel(context.Background())
 	stop()
 	if _, err := c.AcquireManaged(waitCtx, key, "waiter", managedOptions()); !errors.Is(err, context.Canceled) {
@@ -113,7 +113,7 @@ func TestManagedWaitIsCancelableAndReleaseIgnoresCallerCancellation(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer next.Finish(true)
+	defer func() { _ = next.Finish(true) }()
 	if next.Fence() <= g.Fence() {
 		t.Fatal("fence did not advance after release")
 	}

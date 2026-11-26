@@ -67,7 +67,7 @@ func SelectFallback(req SwitchRequest, candidates []Account) (Account, error) {
 	if !req.AllowSwitch || req.OwnerID == "" || !req.Source.Verifiable() || req.Now.IsZero() {
 		return Account{}, ErrUnsafeSwitch
 	}
-	if !req.BeforeDispatch && !(req.Reconciled && req.NoOutput && req.NoSideEffects) {
+	if !req.BeforeDispatch && (!req.Reconciled || !req.NoOutput || !req.NoSideEffects) {
 		return Account{}, ErrUnsafeSwitch
 	}
 	for _, c := range candidates {
