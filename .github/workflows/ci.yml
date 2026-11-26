@@ -41,7 +41,7 @@ jobs:
       - run: go vet ./...
       - run: go test ./... -count=1
   consumer-pin:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-go@v5
@@ -49,9 +49,11 @@ jobs:
           go-version: '1.23.x'
           cache: false
       - name: Resolve immutable consumer dependency
+        env:
+          SDK_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           cd "$(mktemp -d)"
-          GOWORK=off go mod download -json github.com/IAPro-Community/IAPro-SDK@"$GITHUB_SHA"
+          GOWORK=off go mod download -json github.com/IAPro-Community/IAPro-SDK@"$SDK_SHA"
   react:
     runs-on: ubuntu-latest
     defaults:

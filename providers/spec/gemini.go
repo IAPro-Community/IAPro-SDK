@@ -5,6 +5,7 @@ package spec
 
 import (
 	"path/filepath"
+	"time"
 
 	"github.com/IAPro-Community/IAPro-SDK/runtime"
 )
@@ -12,6 +13,10 @@ import (
 var geminiSpec = Spec{
 	ClearLine:        "\x15",
 	ID:               "gemini",
+	DisplayName:      "Gemini CLI",
+	ShortBadge:       "GEMINI",
+	InstallGuideURL:  "https://github.com/google-gemini/gemini-cli",
+	AuthKind:         AuthKindOAuthCLI,
 	BinaryCandidates: []string{"gemini"},
 	EnvKeys: func(profileHome, binDir, profileName string) map[string]string {
 		return map[string]string{
@@ -36,4 +41,22 @@ var geminiSpec = Spec{
 	ReviewIsolation:     IsolationUnverified,
 	Quota:               QuotaLiveHTTP,
 	KnownVersions:       []string{"0.28.2"},
+	ModelGroups: []ModelGroupSpec{
+		{
+			Key:         "",
+			DisplayName: "Gemini",
+			Tier:        GroupTierPrimary,
+			Aliases:     []string{"gemini"},
+		},
+	},
+	QuotaPolicy: QuotaPolicy{
+		DefaultTTL:   5 * time.Minute,
+		ProbeTimeout: 8 * time.Second,
+	},
+	HistorySyncPolicy: HistorySyncPolicy{
+		Mode:            HistorySyncLink,
+		RootSubdir:      ".gemini",
+		SharedPaths:     []string{"history"},
+		CredentialPaths: []string{"oauth_creds.json", "google_accounts.json"},
+	},
 }

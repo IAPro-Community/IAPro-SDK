@@ -6,25 +6,28 @@ package quota
 import (
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/IAPro-Community/IAPro-SDK/model"
+	"github.com/IAPro-Community/IAPro-SDK/providers/spec"
 )
 
 // BuildQuotaView transforms a UsageSnapshot into a QuotaView.
-// It detects model groups from the window Group field and assigns display labels.
+// It detects model groups from the window Group field and assigns display labels and tiers.
 func BuildQuotaView(snap model.UsageSnapshot, account, plan string) QuotaView {
 	qv := QuotaView{
-		Scope:     snap.AccountScope,
-		ExpiresAt: snap.ExpiresAt,
-
-		Provider:  snap.ProviderID,
-		Profile:   snap.ProfileID,
-		Account:   account,
-		Plan:      plan,
-		Status:    string(snap.Status),
-		Source:    string(snap.Source),
-		FetchedAt: snap.FetchedAt,
+		Scope:             snap.AccountScope,
+		ExpiresAt:         snap.ExpiresAt,
+		Provider:          snap.ProviderID,
+		Profile:           snap.ProfileID,
+		Account:           account,
+		Plan:              plan,
+		Status:            string(snap.Status),
+		Source:            string(snap.Source),
+		FetchedAt:         snap.FetchedAt,
+		DiagnosticCode:    snap.DiagnosticCode,
+		DiagnosticMessage: snap.Error,
 	}
 
 	if len(snap.Windows) == 0 {
@@ -84,7 +87,8 @@ func BuildQuotaView(snap model.UsageSnapshot, account, plan string) QuotaView {
 		groupedWindows[gKey] = append(groupedWindows[gKey], appended)
 	}
 
-	// Build ModelGroups in stable order.
+	// Build ModelGroups in stable order with declared tiers.
+	providerSpec, hasSpec := spec.Get(snap.ProviderID)
 	for _, gKey := range groupKeys {
 		displayName := GroupDisplayName(gKey)
 		// Codex exposes a single GPT capacity pool, but the internal pool key
@@ -99,9 +103,16 @@ func BuildQuotaView(snap model.UsageSnapshot, account, plan string) QuotaView {
 		if !multiGroup && gKey == "" && snap.ModelName != "" {
 			displayName = snap.ModelName
 		}
+		tier := spec.GroupTierPrimary
+		if hasSpec {
+			tier = providerSpec.GroupTierFor(gKey)
+		} else if strings.EqualFold(strings.TrimSpace(snap.ProviderID), "agy") && strings.EqualFold(strings.TrimSpace(gKey), "claude_gpt") {
+			tier = spec.GroupTierAuxiliary
+		}
 		qv.ModelGroups = append(qv.ModelGroups, ModelGroup{
 			Key:     gKey,
 			Name:    displayName,
+			Tier:    tier,
 			Windows: groupedWindows[gKey],
 		})
 	}

@@ -4,7 +4,9 @@
 package quota
 
 import (
+	"math"
 	"strings"
+	"time"
 
 	"github.com/IAPro-Community/IAPro-SDK/model"
 )
@@ -15,6 +17,7 @@ type EligibilityReason string
 const (
 	ReasonOK               EligibilityReason = "OK"
 	ReasonUnknownQuota     EligibilityReason = "UNKNOWN_QUOTA"
+	ReasonStaleQuota       EligibilityReason = "STALE_QUOTA"
 	ReasonUnsupportedQuota EligibilityReason = "UNSUPPORTED_QUOTA"
 	ReasonExhausted        EligibilityReason = "EXHAUSTED"
 	ReasonRateLimited      EligibilityReason = "RATE_LIMITED"
@@ -42,6 +45,9 @@ type EligibilityInput struct {
 	NetworkError      bool
 	InCooldown        bool
 	ExplicitSelection bool
+	Now               time.Time
+	FreshnessTTL      time.Duration
+	Require5hWindows  bool
 }
 
 // EvaluateEligibility applies hard gates in a single canonical order.
@@ -141,13 +147,67 @@ func EvaluateEligibility(in EligibilityInput) Eligibility {
 	}
 
 	if !in.ExplicitSelection && status != string(model.UsageLive) && status != string(model.UsageCached) {
-		out.Reason = ReasonUnknownQuota
-		out.Message = "Quota evidence is not measured"
+		out.Reason = ReasonStaleQuota
+		out.Message = "Quota evidence is not current or measured"
 		return out
 	}
+
+	now := in.Now
+	if now.IsZero() {
+		now = time.Now()
+	}
+	if !in.ExplicitSelection && in.FreshnessTTL > 0 {
+		if in.View.FetchedAt.IsZero() || now.Sub(in.View.FetchedAt) > in.FreshnessTTL || now.Sub(in.View.FetchedAt) < -time.Minute {
+			out.Reason = ReasonStaleQuota
+			out.Message = "Quota observation is stale and needs refresh"
+			return out
+		}
+		if in.View.NeedsResetReprobeAt(now) {
+			out.Reason = ReasonStaleQuota
+			out.Message = "Quota window has rolled over and needs refresh"
+			return out
+		}
+	}
+	if !in.ExplicitSelection && in.Require5hWindows {
+		if !HasValidFiveHourWindows(in.View, now) {
+			out.Reason = ReasonUnknownQuota
+			out.Message = "5h quota evidence is missing for one or more model groups"
+			return out
+		}
+	}
+
 	out.Eligible = true
 	out.Reason = ReasonOK
 	return out
+}
+
+// HasValidFiveHourWindows ensures every observed model group exposes a valid
+// short-window (5h) measurement so weekly-only readings never masquerade as
+// full multi-group readiness.
+func HasValidFiveHourWindows(view QuotaView, now time.Time) bool {
+	if len(view.ModelGroups) == 0 {
+		return false
+	}
+	for _, g := range view.ModelGroups {
+		has5h := false
+		for _, w := range g.Windows {
+			kind := strings.ToLower(strings.TrimSpace(w.Kind))
+			if kind != "5h" && kind != "five_hour" && kind != "claude_5h" && kind != "claude_five_hour" {
+				continue
+			}
+			if windowExpired(w, now) {
+				continue
+			}
+			if !math.IsNaN(w.Remaining) && !math.IsInf(w.Remaining, 0) && w.Remaining >= 0 && w.Remaining <= 100 {
+				has5h = true
+				break
+			}
+		}
+		if !has5h {
+			return false
+		}
+	}
+	return true
 }
 
 func confidenceOf(status string) string {

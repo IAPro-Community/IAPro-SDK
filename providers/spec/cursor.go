@@ -4,12 +4,18 @@
 package spec
 
 import (
+	"time"
+
 	"github.com/IAPro-Community/IAPro-SDK/runtime"
 )
 
 var cursorSpec = Spec{
 	ClearLine:        "\x15",
 	ID:               "cursor",
+	DisplayName:      "Cursor Agent",
+	ShortBadge:       "CURSOR",
+	InstallGuideURL:  "https://cursor.com",
+	AuthKind:         AuthKindHostSession,
 	BinaryCandidates: []string{"cursor-agent", "agent"},
 	EnvKeys: func(profileHome, binDir, profileName string) map[string]string {
 		return map[string]string{
@@ -35,4 +41,12 @@ var cursorSpec = Spec{
 	ReviewMode:    []string{"--mode=ask", "--output-format", "text"},
 	Quota:         QuotaUnsupported,
 	KnownVersions: []string{},
+	QuotaPolicy: QuotaPolicy{
+		DefaultTTL:   5 * time.Minute,
+		ProbeTimeout: 8 * time.Second,
+	},
+	HistorySyncPolicy: HistorySyncPolicy{
+		Mode:            HistorySyncNone,
+		CredentialPaths: []string{"auth.json"},
+	},
 }

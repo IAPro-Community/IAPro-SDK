@@ -5,6 +5,7 @@ package spec
 
 import (
 	"path/filepath"
+	"time"
 
 	"github.com/IAPro-Community/IAPro-SDK/runtime"
 )
@@ -12,6 +13,10 @@ import (
 var codexSpec = Spec{
 	ClearLine:        "\x15",
 	ID:               "codex",
+	DisplayName:      "Codex CLI",
+	ShortBadge:       "CODEX",
+	InstallGuideURL:  "https://github.com/openai/codex",
+	AuthKind:         AuthKindOAuthCLI,
 	BinaryCandidates: []string{"codex"},
 	EnvKeys: func(profileHome, binDir, profileName string) map[string]string {
 		return map[string]string{
@@ -44,4 +49,21 @@ var codexSpec = Spec{
 	ReviewIsolation:     IsolationReadOnlyNoNetwork,
 	Quota:               QuotaLiveRPC,
 	KnownVersions:       []string{"0.50.0"},
+	ModelGroups: []ModelGroupSpec{
+		{
+			Key:         "claude_gpt",
+			DisplayName: "Codex",
+			Tier:        GroupTierPrimary,
+			Aliases:     []string{"gpt", "o1", "o3", "o4", "codex"},
+		},
+	},
+	QuotaPolicy: QuotaPolicy{
+		DefaultTTL:   5 * time.Minute,
+		ProbeTimeout: 8 * time.Second,
+	},
+	HistorySyncPolicy: HistorySyncPolicy{
+		Mode:            HistorySyncIncrementalCopy,
+		SharedPaths:     []string{"sessions", "session_index.jsonl"},
+		CredentialPaths: []string{"auth.json", ".codex/auth.json"},
+	},
 }

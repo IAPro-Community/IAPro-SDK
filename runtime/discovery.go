@@ -140,7 +140,7 @@ func envSetForOS(base []string, overrides map[string]string, goos string, unset 
 		blocked[normalize(key)] = true
 	}
 	sort.Strings(keys)
-	var out []string
+	out := make([]string, 0, len(base)+len(overrides))
 	for _, entry := range base {
 		key, _, ok := strings.Cut(entry, "=")
 		if !ok || blocked[normalize(key)] {

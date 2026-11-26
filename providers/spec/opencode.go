@@ -5,6 +5,7 @@ package spec
 
 import (
 	"path/filepath"
+	"time"
 
 	"github.com/IAPro-Community/IAPro-SDK/runtime"
 )
@@ -12,6 +13,10 @@ import (
 var opencodeSpec = Spec{
 	ClearLine:        "\x15",
 	ID:               "opencode",
+	DisplayName:      "OpenCode",
+	ShortBadge:       "OPENCD",
+	InstallGuideURL:  "https://opencode.ai",
+	AuthKind:         AuthKindOAuthCLI,
 	BinaryCandidates: []string{"opencode"},
 	EnvKeys: func(profileHome, binDir, profileName string) map[string]string {
 		return map[string]string{
@@ -40,4 +45,21 @@ var opencodeSpec = Spec{
 	ReviewMode:    nil,
 	Quota:         QuotaLiveHTTP,
 	KnownVersions: []string{"1.18.30"},
+	ModelGroups: []ModelGroupSpec{
+		{
+			Key:         "",
+			DisplayName: "OpenCode",
+			Tier:        GroupTierPrimary,
+		},
+	},
+	QuotaPolicy: QuotaPolicy{
+		DefaultTTL:   5 * time.Minute,
+		ProbeTimeout: 8 * time.Second,
+	},
+	HistorySyncPolicy: HistorySyncPolicy{
+		Mode:            HistorySyncLink,
+		RootSubdir:      ".local/share/opencode",
+		SharedPaths:     []string{"session", "sessions", "storage/session", "storage/message"},
+		CredentialPaths: []string{"auth.json"},
+	},
 }

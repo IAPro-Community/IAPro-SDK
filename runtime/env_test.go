@@ -12,3 +12,9 @@ func TestWindowsEnvCaseInsensitive(t *testing.T) {
 		t.Fatalf("environment = %v, want %v", got, want)
 	}
 }
+
+func TestExplicitEmptyEnvironmentDoesNotInheritParent(t *testing.T) {
+	if got := EnvSet([]string{}, nil); got == nil {
+		t.Fatal("nil environment inherits host secrets")
+	}
+}

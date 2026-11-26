@@ -24,22 +24,24 @@ var (
 	ErrLaunch   = errors.New("provider process launch failed")
 	ErrProcess  = errors.New("provider process failed")
 	ErrProtocol = errors.New("provider event protocol failed")
+	// ErrNotDispatched certifies that no model process was started.
+	ErrNotDispatched = errors.New("provider process not dispatched")
 )
 
 // Run never retries or exposes raw diagnostics. The decoder must require a
 // successful terminal event; successful process exit is independently required.
 func Run(ctx context.Context, launch Launch, prompt string, decoder Decoder) (providers.RunResult, error) {
 	if err := ctx.Err(); err != nil {
-		return providers.RunResult{}, err
+		return providers.RunResult{}, errors.Join(ErrNotDispatched, err)
 	}
 	if launch == nil || decoder == nil {
-		return providers.RunResult{}, ErrLaunch
+		return providers.RunResult{}, errors.Join(ErrNotDispatched, ErrLaunch)
 	}
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	cmd, err := launch(runCtx)
 	if err != nil || cmd == nil || cmd.Process != nil {
-		return providers.RunResult{}, ErrLaunch
+		return providers.RunResult{}, errors.Join(ErrNotDispatched, ErrLaunch)
 	}
 	cmd.Stdin = strings.NewReader(prompt)
 	cmd.Stdout = &cancelWriter{writer: decoder, cancel: cancel}
@@ -48,9 +50,9 @@ func Run(ctx context.Context, launch Launch, prompt string, decoder Decoder) (pr
 	runErr := cmd.Run()
 	if cmd.Process == nil {
 		if ctx.Err() != nil {
-			return providers.RunResult{}, ctx.Err()
+			return providers.RunResult{}, errors.Join(ErrNotDispatched, ctx.Err())
 		}
-		return providers.RunResult{}, ErrLaunch
+		return providers.RunResult{}, errors.Join(ErrNotDispatched, ErrLaunch)
 	}
 	result, decodeErr := decoder.Finish()
 	if ctx.Err() != nil {
