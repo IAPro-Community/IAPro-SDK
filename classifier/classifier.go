@@ -42,6 +42,14 @@ var (
 		regexp.MustCompile(`(?i)\b(service unavailable|bad gateway|gateway timeout|model overloaded)\b`),
 	}
 
+	// modelUnsupportedPatterns detect a model the account cannot use. The text
+	// comes from provider CLIs; the fix is another model, not a retry.
+	modelUnsupportedPatterns = []*regexp.Regexp{
+		regexp.MustCompile(`(?i)\bis not supported when using codex\b`),
+		regexp.MustCompile(`(?i)\b(?:unknown|unsupported) model\b`),
+		regexp.MustCompile(`(?i)\bmodel\b[^\n]{0,160}\b(?:is not supported|not supported for|does not exist|not found)\b`),
+	}
+
 	retrySecondsRegex = regexp.MustCompile(`(?i)(?:retry|try again|wait)\s+(?:in|after)?\s*(\d+)\s*(?:seconds?|secs?|s)\b`)
 	retryMinutesRegex = regexp.MustCompile(`(?i)(?:retry|try again|wait)\s+(?:in|after)?\s*(\d+)\s*(?:minutes?|mins?|m)\b`)
 	retryHoursRegex   = regexp.MustCompile(`(?i)(?:retry|try again|wait)\s+(?:in|after)?\s*(\d+)\s*(?:hours?|hrs?|h)\b`)
@@ -52,14 +60,28 @@ func Classify(err error, output string) model.Failure {
 	if err == nil {
 		return model.Failure{Kind: model.FailureNone}
 	}
-	combined := ""
-	if err != nil {
-		combined += err.Error() + "\n"
-	}
-	combined += output
+	return classifyText(err.Error() + "\n" + output)
+}
 
+// ClassifyMessage classifies provider diagnostics that arrive without an error
+// value, such as a failed structured turn event. The text is never echoed back.
+func ClassifyMessage(message string) model.Failure {
+	return classifyText(message)
+}
+
+func classifyText(combined string) model.Failure {
 	if strings.TrimSpace(combined) == "" {
 		return model.Failure{Kind: model.FailureNone}
+	}
+
+	// 0. Check Model Unsupported
+	for _, p := range modelUnsupportedPatterns {
+		if p.MatchString(combined) {
+			return model.Failure{
+				Kind:    model.FailureModelUnsupported,
+				Message: "Requested model is not supported by this account",
+			}
+		}
 	}
 
 	// 1. Check Rate Limit

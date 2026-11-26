@@ -6,6 +6,7 @@ import (
 	"errors"
 	"math"
 
+	"github.com/IAPro-Community/IAPro-SDK/classifier"
 	"github.com/IAPro-Community/IAPro-SDK/model"
 	"github.com/IAPro-Community/IAPro-SDK/providers"
 	"github.com/IAPro-Community/IAPro-SDK/providers/jsonl"
@@ -49,6 +50,10 @@ type execEvent struct {
 		InputTokens  *int64 `json:"input_tokens"`
 		OutputTokens *int64 `json:"output_tokens"`
 	} `json:"usage"`
+	Message string `json:"message"`
+	Error   *struct {
+		Message string `json:"message"`
+	} `json:"error"`
 }
 
 func (d *ExecDecoder) consume(line []byte) error {
@@ -96,7 +101,16 @@ func (d *ExecDecoder) consume(line []byte) error {
 		}
 		d.completed = true
 	case "turn.failed", "error":
-		d.result.Failure = model.Failure{Kind: model.FailureUnknown, Message: "Codex reported a failed turn"}
+		// The failure kind comes from the shared classifier; the raw CLI text is
+		// not stored or returned because it can echo the prompt.
+		detail := e.Message
+		if e.Error != nil && e.Error.Message != "" {
+			detail = e.Error.Message
+		}
+		d.result.Failure = classifier.ClassifyMessage(detail)
+		if d.result.Failure.Kind == model.FailureNone || d.result.Failure.Kind == "" {
+			d.result.Failure = model.Failure{Kind: model.FailureUnknown, Message: "Codex reported a failed turn"}
+		}
 		return ErrIncompleteTurn
 	}
 	return nil
