@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -24,6 +25,9 @@ func (d *fakeDecoder) Finish() (providers.RunResult, error) {
 }
 
 func shellCommand(ctx context.Context, script string) (*exec.Cmd, error) {
+	if runtime.GOOS == "windows" {
+		return exec.CommandContext(ctx, "cmd", "/c", script), nil
+	}
 	return exec.CommandContext(ctx, "/bin/sh", "-c", script), nil
 }
 
