@@ -27,10 +27,11 @@ type UsageCache struct {
 }
 
 type usageSlot struct {
-	done  chan struct{}
-	value model.UsageSnapshot
-	err   error
-	until time.Time
+	done        chan struct{}
+	value       model.UsageSnapshot
+	err         error
+	until       time.Time
+	completedAt time.Time
 }
 
 // NewUsageCache requires an adapter that independently verifies identity,
@@ -63,6 +64,19 @@ func (c *UsageCache) verify(ctx context.Context, a Account) error {
 // GetUsage never returns an old observation after reauthentication or expiry.
 // A canceled waiter does not cancel another caller's in-flight probe.
 func (c *UsageCache) GetUsage(ctx context.Context, a Account) (model.UsageSnapshot, error) {
+	return c.getUsage(ctx, a, time.Time{})
+}
+
+// RefreshUsage bypasses an older cached observation but coalesces explicit
+// refreshes arriving within the host's minimum refresh interval.
+func (c *UsageCache) RefreshUsage(ctx context.Context, a Account, minimumInterval time.Duration) (model.UsageSnapshot, error) {
+	if minimumInterval <= 0 {
+		return model.UsageSnapshot{}, errors.New("positive quota refresh interval required")
+	}
+	return c.getUsage(ctx, a, c.now().Add(-minimumInterval))
+}
+
+func (c *UsageCache) getUsage(ctx context.Context, a Account, refreshAfter time.Time) (model.UsageSnapshot, error) {
 	if err := a.Validate(); err != nil {
 		return model.UsageSnapshot{}, err
 	}
@@ -80,10 +94,12 @@ func (c *UsageCache) GetUsage(ctx context.Context, a Account) (model.UsageSnapsh
 				case <-ctx.Done():
 					return model.UsageSnapshot{}, ctx.Err()
 				case <-done:
+					// A probe already in flight satisfies an explicit refresh.
+					refreshAfter = time.Time{}
 					continue
 				}
 			}
-			if now.Before(s.until) {
+			if now.Before(s.until) && (refreshAfter.IsZero() || !s.completedAt.Before(refreshAfter)) {
 				value, err := cloneUsage(s.value), s.err
 				c.mu.Unlock()
 				if err != nil {
@@ -144,10 +160,13 @@ func (c *UsageCache) GetUsage(ctx context.Context, a Account) (model.UsageSnapsh
 			value = model.UsageSnapshot{}
 			until = now.Add(c.backoff)
 		} else {
+			if value.Status == model.UsageError && now.Add(c.backoff).Before(until) {
+				until = now.Add(c.backoff)
+			}
 			value.ExpiresAt = &until
 		}
 		c.mu.Lock()
-		s.value, s.err, s.until = cloneUsage(value), err, until
+		s.value, s.err, s.until, s.completedAt = cloneUsage(value), err, until, now
 		close(s.done)
 		s.done = nil
 		if ctx.Err() != nil {
