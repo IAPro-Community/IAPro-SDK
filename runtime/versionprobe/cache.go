@@ -7,8 +7,8 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"os"
-	"sync"
 	"strings"
+	"sync"
 	"time"
 )
 
