@@ -50,7 +50,10 @@ const (
 	FailureProvider  FailureKind = "PROVIDER_FAILURE"
 	FailureCommand   FailureKind = "COMMAND_FAILURE"
 	FailureUser      FailureKind = "USER_FAILURE"
-	FailureUnknown   FailureKind = "UNKNOWN_FAILURE"
+	// FailureModelUnsupported means the account cannot use the requested model;
+	// the caller must pick another model, not retry.
+	FailureModelUnsupported FailureKind = "MODEL_UNSUPPORTED_FAILURE"
+	FailureUnknown          FailureKind = "UNKNOWN_FAILURE"
 )
 
 // UsageStatus represents the state and confidence of quota/usage data.
