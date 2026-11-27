@@ -14,6 +14,7 @@ func ZCodeSpec() Spec {
 		DisplayName:      "Z Code",
 		ShortBadge:       "ZCD",
 		AuthKind:         AuthKindAPIKey,
+		LoginCommand:     func() []string { return []string{"login", "zai"} },
 		BinaryCandidates: []string{"zcode"},
 		ClearLine:        "\x15",
 		EnvKeys: func(home, binDir, profile string) map[string]string {

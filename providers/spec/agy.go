@@ -19,6 +19,7 @@ var agySpec = Spec{
 	ShortBadge:       "AGY",
 	InstallGuideURL:  "https://antigravity.google",
 	AuthKind:         AuthKindOAuthCLI,
+	LoginCommand:     func() []string { return nil },
 	BinaryCandidates: []string{"agy"},
 	EnvKeys: func(profileHome, binDir, profileName string) map[string]string {
 		pathBins := []string{binDir}

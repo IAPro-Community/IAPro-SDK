@@ -17,6 +17,7 @@ var claudeSpec = Spec{
 	ShortBadge:       "CLAUDE",
 	InstallGuideURL:  "https://docs.anthropic.com/en/docs/claude-code",
 	AuthKind:         AuthKindOAuthCLI,
+	LoginCommand:     func() []string { return []string{"auth", "login"} },
 	BinaryCandidates: []string{"claude"},
 	EnvKeys: func(profileHome, binDir, profileName string) map[string]string {
 		return map[string]string{

@@ -109,6 +109,8 @@ type Spec struct {
 	ShortBadge        string
 	InstallGuideURL   string
 	AuthKind          AuthKind
+	LoginCommand      func() []string
+	LogoutCommand     func() []string
 	ModelGroups       []ModelGroupSpec
 	QuotaPolicy       QuotaPolicy
 	HistorySyncPolicy HistorySyncPolicy

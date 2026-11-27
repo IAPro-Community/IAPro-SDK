@@ -17,6 +17,7 @@ var opencodeSpec = Spec{
 	ShortBadge:       "OPENCD",
 	InstallGuideURL:  "https://opencode.ai",
 	AuthKind:         AuthKindOAuthCLI,
+	LoginCommand:     func() []string { return []string{"providers", "login"} },
 	BinaryCandidates: []string{"opencode"},
 	EnvKeys: func(profileHome, binDir, profileName string) map[string]string {
 		return map[string]string{

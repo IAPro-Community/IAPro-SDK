@@ -16,6 +16,8 @@ var cursorSpec = Spec{
 	ShortBadge:       "CURSOR",
 	InstallGuideURL:  "https://cursor.com",
 	AuthKind:         AuthKindHostSession,
+	LoginCommand:     func() []string { return []string{"login"} },
+	LogoutCommand:    func() []string { return []string{"logout"} },
 	BinaryCandidates: []string{"cursor-agent", "agent"},
 	EnvKeys: func(profileHome, binDir, profileName string) map[string]string {
 		return map[string]string{
