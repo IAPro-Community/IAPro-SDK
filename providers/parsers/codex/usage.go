@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/IAPro-Community/IAPro-SDK/model"
+	"github.com/IAPro-Community/IAPro-SDK/providers/spec"
 )
 
 type rateWindow struct {
@@ -71,6 +72,9 @@ func ParseUsage(raw []byte, scope model.AccountScope, expectedExternalID string,
 	if bucket.PlanType != nil {
 		snap.Plan = *bucket.PlanType
 	}
+	// Derived from the provider spec instead of a second hard-coded table:
+	// the group key names the quota pool the windows belong to.
+	group, _ := spec.MustGet("codex").DefaultModelGroup()
 	for _, item := range []struct {
 		window *rateWindow
 		kind   string
@@ -90,7 +94,7 @@ func ParseUsage(raw []byte, scope model.AccountScope, expectedExternalID string,
 				kind = fmt.Sprintf("minutes_%d", *w.WindowDurationMins)
 			}
 		}
-		window := model.UsageWindow{Kind: kind, Group: "claude_gpt"}
+		window := model.UsageWindow{Kind: kind, Group: group}
 		if w.UsedPercent != nil && *w.UsedPercent >= 0 && *w.UsedPercent <= 100 {
 			used := *w.UsedPercent
 			remaining := 100 - used

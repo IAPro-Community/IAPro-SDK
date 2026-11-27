@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Catálogo de modelos Codex tipado (`codex debug models`, `--bundled` por padrão) em `providers/parsers/codex` e `providers/codex`, com rejeição de payload vazio, slug duplicado ou entrada sem slug.
+- Grupo de quota Codex vem de `spec.MustGet("codex").DefaultModelGroup()` em vez de literal fixo; `Spec.DefaultModelGroup` expõe o grupo primário declarado.
+
+## Unreleased
+
 - Inicialização do módulo Go e extração de tipos, classificação de falhas e projeção/gates de quota do Nexus.
 - Testes de caracterização portados e regressões de quota desconhecida/grupos independentes.
 - Sem tag, sem publicação de pacote e sem integração em consumidores.

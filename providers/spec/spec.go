@@ -324,6 +324,21 @@ func (s Spec) GroupTierFor(groupKey string) GroupTier {
 	return GroupTierPrimary
 }
 
+// DefaultModelGroup returns the group a provider attributes quota to when no
+// more specific model carries its own pool. Codex and AGY expose a single
+// primary pool, so the first primary group is the default.
+func (s Spec) DefaultModelGroup() (string, bool) {
+	for _, g := range s.ModelGroups {
+		if s.GroupTierFor(g.Key) != GroupTierPrimary {
+			continue
+		}
+		if key := strings.TrimSpace(g.Key); key != "" {
+			return key, true
+		}
+	}
+	return "", false
+}
+
 // ResolveGroupForModel maps a user-specified model name to a declared group key.
 func (s Spec) ResolveGroupForModel(modelName string) (string, bool) {
 	m := strings.ToLower(strings.TrimSpace(modelName))
