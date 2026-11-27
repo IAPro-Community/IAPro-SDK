@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/IAPro-Community/IAPro-SDK/model"
+	"github.com/IAPro-Community/IAPro-SDK/providers"
 )
 
 // RPC is a host-owned, isolated stdio app-server connection. The host must
@@ -31,7 +32,7 @@ func Probe(ctx context.Context, rpc RPC, scope model.AccountScope, expectedAccou
 	defer cancel()
 	raw, err := rpc.Call(ctx, "initialize", map[string]any{"clientInfo": map[string]string{"name": "iapro_sdk", "version": "0.1.0"}})
 	if err != nil {
-		return model.UsageSnapshot{}, errors.New("codex initialize failed")
+		return model.UsageSnapshot{}, sanitizedProbeError(err, "codex initialize failed")
 	}
 	var init struct {
 		CodexHome string `json:"codexHome"`
@@ -44,7 +45,21 @@ func Probe(ctx context.Context, rpc RPC, scope model.AccountScope, expectedAccou
 	}
 	raw, err = rpc.Call(ctx, "account/rateLimits/read", map[string]bool{"excludeResetCreditDetails": true})
 	if err != nil {
-		return model.UsageSnapshot{}, errors.New("codex quota read failed")
+		return model.UsageSnapshot{}, sanitizedProbeError(err, "codex quota read failed")
 	}
 	return ParseUsage(raw, scope, expectedAccount, now())
+}
+
+func sanitizedProbeError(err error, fallback string) error {
+	if errors.Is(err, context.Canceled) {
+		return context.Canceled
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return context.DeadlineExceeded
+	}
+	var typed *providers.ProbeError
+	if errors.As(err, &typed) {
+		return &providers.ProbeError{Code: providers.ClassifyProbeError(err)}
+	}
+	return errors.New(fallback)
 }

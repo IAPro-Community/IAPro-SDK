@@ -85,8 +85,11 @@ func (q *DedicatedQuota) InspectAuth(ctx context.Context, a providers.Account) (
 		return providers.Authentication{}, err
 	}
 	ok, err := CheckLoginStatus(ctx, q.cfg.Login)
-	if err != nil || !ok {
+	if err != nil {
 		return providers.Authentication{}, providers.ErrIdentityMismatch
+	}
+	if !ok {
+		return providers.Authentication{}, &providers.ProbeError{Code: providers.ProbeAuthExpired}
 	}
 	if err := q.verify(ctx, a); err != nil {
 		return providers.Authentication{}, err

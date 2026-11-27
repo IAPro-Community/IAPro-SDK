@@ -9,8 +9,11 @@ import (
 	"errors"
 	"io"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/IAPro-Community/IAPro-SDK/providers"
 )
 
 const maxRPCLine = 4 * 1024 * 1024
@@ -147,7 +150,11 @@ func (r *StdioRPC) exchange(ctx context.Context, method string, params any, noti
 			if response.ID == nil || *response.ID != id {
 				continue
 			}
-			if len(response.Error) > 0 && string(response.Error) != "null" || len(response.Result) == 0 {
+			if len(response.Error) > 0 && string(response.Error) != "null" {
+				result <- rpcOutcome{err: classifyRPCError(response.Error)}
+				return
+			}
+			if len(response.Result) == 0 {
 				result <- rpcOutcome{err: ErrProtocol}
 				return
 			}
@@ -176,4 +183,25 @@ func (r *StdioRPC) Call(ctx context.Context, method string, params any) (json.Ra
 func (r *StdioRPC) Notify(ctx context.Context, method string, params any) error {
 	_, err := r.exchange(ctx, method, params, true)
 	return err
+}
+
+// classifyRPCError accepts only the matched JSON-RPC error object. Provider
+// diagnostics may contain secrets; return a fixed code, never raw text.
+func classifyRPCError(raw json.RawMessage) error {
+	var failure struct {
+		Code    int             `json:"code"`
+		Message string          `json:"message"`
+		Data    json.RawMessage `json:"data"`
+	}
+	if len(raw) > 64*1024 || json.Unmarshal(raw, &failure) != nil {
+		return ErrProtocol
+	}
+	detail := strings.ToLower(failure.Message + " " + string(failure.Data))
+	if failure.Code == 401 || strings.Contains(detail, "invalid_jwt") ||
+		strings.Contains(detail, "unauthorized") || strings.Contains(detail, "token_expired") ||
+		strings.Contains(detail, "token expired") || strings.Contains(detail, "http 401") ||
+		strings.Contains(detail, "status 401") {
+		return &providers.ProbeError{Code: providers.ProbeAuthExpired}
+	}
+	return ErrProtocol
 }

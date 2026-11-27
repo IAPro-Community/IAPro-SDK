@@ -3,11 +3,13 @@ package codex
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/IAPro-Community/IAPro-SDK/model"
+	"github.com/IAPro-Community/IAPro-SDK/providers"
 )
 
 type fixtureRPC struct {
@@ -45,5 +47,26 @@ func TestProbeReadOnlyAndIdentity(t *testing.T) {
 	rpc = &fixtureRPC{home: "/foreign"}
 	if _, err := Probe(context.Background(), rpc, scope, "test", "/profile", same, time.Now); err == nil || len(rpc.calls) != 1 || !rpc.closed {
 		t.Fatal("foreign home should stop before quota call")
+	}
+}
+
+type expiredRPC struct {
+	fixtureRPC
+}
+
+func (r *expiredRPC) Call(ctx context.Context, method string, params any) (json.RawMessage, error) {
+	if method == "account/rateLimits/read" {
+		return nil, &providers.ProbeError{Code: providers.ProbeAuthExpired, Message: "private diagnostic"}
+	}
+	return r.fixtureRPC.Call(ctx, method, params)
+}
+
+func TestProbePreservesSanitizedAuthFailure(t *testing.T) {
+	rpc := &expiredRPC{fixtureRPC{home: "/profile"}}
+	scope := model.AccountScope{ProviderID: "codex", ProfileID: "p", AccountID: "a", IdentityVersion: "v1"}
+	snap, err := Probe(context.Background(), rpc, scope, "a", "/profile", func(a, b string) bool { return a == b }, time.Now)
+	var pe *providers.ProbeError
+	if !errors.As(err, &pe) || pe.Code != providers.ProbeAuthExpired || err.Error() != string(providers.ProbeAuthExpired) || !rpc.closed || len(snap.Windows) != 0 {
+		t.Fatalf("expected sanitized expired login: %v, %+v", err, snap)
 	}
 }

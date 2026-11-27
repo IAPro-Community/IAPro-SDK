@@ -47,6 +47,13 @@ func (c *UsageCache) verify(ctx context.Context, a Account) error {
 		return err
 	}
 	auth, err := c.auth.InspectAuth(ctx, a)
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	var typed *ProbeError
+	if errors.As(err, &typed) {
+		return &ProbeError{Code: ClassifyProbeError(err)}
+	}
 	if err != nil || !auth.Authenticated || auth.Scope != a.Scope || auth.ObservedAt.IsZero() || auth.ObservedAt.After(c.now()) || c.now().Sub(auth.ObservedAt) >= c.ttl {
 		return ErrIdentityMismatch
 	}
@@ -110,7 +117,12 @@ func (c *UsageCache) GetUsage(ctx context.Context, a Account) (model.UsageSnapsh
 			if ctx.Err() != nil {
 				err = ctx.Err()
 			} else {
-				err = ErrProbeFailed
+				code := ClassifyProbeError(err)
+				if code == ProbeUnknownError {
+					err = ErrProbeFailed
+				} else {
+					err = &ProbeError{Code: code}
+				}
 			}
 		}
 		if err == nil {
