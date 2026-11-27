@@ -53,15 +53,11 @@ func (q *DedicatedQuota) Identity(ctx context.Context, owner, profile string) (p
 	if err != nil || ctx.Err() != nil {
 		return providers.Account{}, providers.ErrIdentityMismatch
 	}
-	id, err := ExternalAccountID(raw)
+	scope, err := ScopeFromAuth(profile, raw)
 	if err != nil {
-		return providers.Account{}, providers.ErrIdentityMismatch
+		return providers.Account{}, err
 	}
-	generation := sha256.Sum256(raw)
-	return providers.Account{OwnerID: owner, Scope: model.AccountScope{
-		ProviderID: string(model.ProviderCodex), ProfileID: profile, AccountID: id,
-		IdentityVersion: hex.EncodeToString(generation[:]), CredentialScope: "dedicated-codex-home",
-	}}, nil
+	return providers.Account{OwnerID: owner, Scope: scope}, nil
 }
 
 func (q *DedicatedQuota) verify(ctx context.Context, a providers.Account) error {
@@ -118,4 +114,18 @@ func (q *DedicatedQuota) GetUsage(ctx context.Context, a providers.Account) (mod
 		return model.UsageSnapshot{}, err
 	}
 	return snapshot, nil
+}
+
+// ScopeFromAuth derives local attribution and a credential generation, not
+// proof of a remote login. The caller owns and must wipe raw after use.
+func ScopeFromAuth(profile string, raw []byte) (model.AccountScope, error) {
+	id, err := ExternalAccountID(raw)
+	if err != nil || profile == "" {
+		return model.AccountScope{}, providers.ErrIdentityMismatch
+	}
+	generation := sha256.Sum256(raw)
+	return model.AccountScope{
+		ProviderID: string(model.ProviderCodex), ProfileID: profile, AccountID: id,
+		IdentityVersion: hex.EncodeToString(generation[:]), CredentialScope: "dedicated-codex-home",
+	}, nil
 }
