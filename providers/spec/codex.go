@@ -17,6 +17,7 @@ var codexSpec = Spec{
 	ShortBadge:       "CODEX",
 	InstallGuideURL:  "https://github.com/openai/codex",
 	AuthKind:         AuthKindOAuthCLI,
+	LoginCommand:     func() []string { return []string{"login"} },
 	BinaryCandidates: []string{"codex"},
 	EnvKeys: func(profileHome, binDir, profileName string) map[string]string {
 		return map[string]string{

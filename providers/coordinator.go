@@ -239,6 +239,9 @@ type inFlightProbe struct {
 // safeProbeCode accepts only declared machine-readable diagnostics.
 func safeProbeCode(code ProbeCode) ProbeCode {
 	switch code {
+	case "AUTH_REQUIRED":
+		// Compatibility with Nexus provider snapshots; one canonical code.
+		return ProbeAuthExpired
 	case ProbeOK, ProbeTimeout, ProbeAuthExpired, ProbeProfileLocked, ProbeRateLimited,
 		ProbeParseFailed, ProbeBinaryMissing, ProbeUnsupported, ProbeNetworkError, ProbeUnknownError:
 		return code

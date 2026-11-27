@@ -145,38 +145,15 @@ func (r *Registry) List() []ProviderRegistration {
 // DetectAll runs Detect across every registered adapter concurrently, bounded by
 // perProviderTimeout, eliminating sequential CLI launch delays.
 func (r *Registry) DetectAll(ctx context.Context, perProviderTimeout time.Duration) map[string]DetectedProvider {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	if perProviderTimeout <= 0 {
-		perProviderTimeout = 4 * time.Second
-	}
 	entries := r.List()
-	results := make(map[string]DetectedProvider, len(entries))
-	if len(entries) == 0 {
-		return results
-	}
-
-	var mu sync.Mutex
-	var wg sync.WaitGroup
+	bindings := make([]Binding[ProviderRegistration], 0, len(entries))
 	for _, entry := range entries {
-		wg.Add(1)
-		go func(reg ProviderRegistration) {
-			defer wg.Done()
-			dctx, cancel := context.WithTimeout(ctx, perProviderTimeout)
-			det, err := reg.Adapter.Detect(dctx)
-			cancel()
-			mu.Lock()
-			results[reg.Spec.ID] = DetectedProvider{
-				ID:        reg.Spec.ID,
-				Detection: det,
-				Err:       err,
-			}
-			mu.Unlock()
-		}(entry)
+		bindings = append(bindings, Binding[ProviderRegistration]{ID: entry.Spec.ID, Value: entry})
 	}
-	wg.Wait()
-	return results
+	return DetectBindings(ctx, bindings, perProviderTimeout, 4, func(ctx context.Context, reg ProviderRegistration) DetectedProvider {
+		det, err := reg.Adapter.Detect(ctx)
+		return DetectedProvider{ID: reg.Spec.ID, Detection: det, Err: err}
+	})
 }
 
 // SortedIDs returns all registered provider IDs sorted alphabetically.

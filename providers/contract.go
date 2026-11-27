@@ -28,8 +28,10 @@ func (a Account) Validate() error {
 }
 
 type Detection struct {
-	Installed bool
-	Version   string
+	Installed  bool   `json:"installed"`
+	Version    string `json:"version,omitempty"`
+	BinaryPath string `json:"binary_path,omitempty"`
+	Error      string `json:"error,omitempty"`
 }
 
 type Authentication struct {

@@ -19,6 +19,7 @@ var agySpec = Spec{
 	ShortBadge:       "AGY",
 	InstallGuideURL:  "https://antigravity.google",
 	AuthKind:         AuthKindOAuthCLI,
+	LoginCommand:     func() []string { return nil },
 	BinaryCandidates: []string{"agy"},
 	EnvKeys: func(profileHome, binDir, profileName string) map[string]string {
 		pathBins := []string{binDir}
@@ -85,12 +86,21 @@ var agySpec = Spec{
 			"antigravity-cli/knowledge",
 			"antigravity-cli/installed_extensions.json",
 			"antigravity-cli/customizations",
+			"antigravity-cli/annotations",
+			"antigravity-cli/implicit",
+			"antigravity/conversations",
+			"antigravity/brain",
+			"antigravity/annotations",
+			"antigravity/implicit",
 		},
 		CredentialPaths: []string{
 			"antigravity-cli/antigravity-oauth-token",
 			"antigravity-cli/antigravity-oauth-token.bak",
 			"antigravity-cli/installation_id",
 			"antigravity-cli/settings.json",
+			"antigravity-cli/jetski_state.pbtxt",
+			"antigravity/antigravity_state.pbtxt",
+			"antigravity/installation_id",
 		},
 	},
 }

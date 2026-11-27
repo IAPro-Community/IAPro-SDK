@@ -17,6 +17,7 @@ var opencodeSpec = Spec{
 	ShortBadge:       "OPENCD",
 	InstallGuideURL:  "https://opencode.ai",
 	AuthKind:         AuthKindOAuthCLI,
+	LoginCommand:     func() []string { return []string{"providers", "login"} },
 	BinaryCandidates: []string{"opencode"},
 	EnvKeys: func(profileHome, binDir, profileName string) map[string]string {
 		return map[string]string{
@@ -57,9 +58,9 @@ var opencodeSpec = Spec{
 		ProbeTimeout: 8 * time.Second,
 	},
 	HistorySyncPolicy: HistorySyncPolicy{
-		Mode:            HistorySyncLink,
+		Mode:            HistorySyncNone,
 		RootSubdir:      ".local/share/opencode",
 		SharedPaths:     []string{"session", "sessions", "storage/session", "storage/message"},
-		CredentialPaths: []string{"auth.json"},
+		CredentialPaths: []string{"auth.json", "opencode.db"},
 	},
 }
