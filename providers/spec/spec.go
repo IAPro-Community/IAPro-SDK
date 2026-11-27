@@ -142,9 +142,10 @@ var builtinSpecs = map[string]Spec{
 	"cursor":   cursorSpec,
 	"gemini":   geminiSpec,
 	"opencode": opencodeSpec,
+	"zcode":    ZCodeSpec(),
 }
 
-var builtinOrder = []string{"agy", "claude", "codex", "cursor", "gemini", "opencode"}
+var builtinOrder = []string{"agy", "claude", "codex", "cursor", "gemini", "opencode", "zcode"}
 
 var defaultRegistry = NewRegistry()
 

@@ -57,9 +57,9 @@ var opencodeSpec = Spec{
 		ProbeTimeout: 8 * time.Second,
 	},
 	HistorySyncPolicy: HistorySyncPolicy{
-		Mode:            HistorySyncLink,
+		Mode:            HistorySyncNone,
 		RootSubdir:      ".local/share/opencode",
 		SharedPaths:     []string{"session", "sessions", "storage/session", "storage/message"},
-		CredentialPaths: []string{"auth.json"},
+		CredentialPaths: []string{"auth.json", "opencode.db"},
 	},
 }

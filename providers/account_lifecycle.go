@@ -9,9 +9,17 @@ import (
 
 // Lifecycle ports receive only host-authorized operations. In particular,
 // deletion and authentication must never be triggered by passive discovery.
+// ProfileRef is a host-authorized reference that may be signed out. It is
+// deliberately not a verified Account and cannot be used for routing.
+type ProfileRef struct {
+	OwnerID    string
+	ProviderID string
+	ProfileID  string
+}
+
 type AccountLifecycle interface {
-	Login(context.Context, Account) error
-	Logout(context.Context, Account) error
+	Login(context.Context, ProfileRef) error
+	Logout(context.Context, ProfileRef) error
 }
 
 var portableLabel = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,31}$`)

@@ -47,6 +47,7 @@ var cursorSpec = Spec{
 	},
 	HistorySyncPolicy: HistorySyncPolicy{
 		Mode:            HistorySyncNone,
-		CredentialPaths: []string{"auth.json"},
+		RootSubdir:      ".cursor",
+		CredentialPaths: []string{"auth.json", "cli-config.json"},
 	},
 }
