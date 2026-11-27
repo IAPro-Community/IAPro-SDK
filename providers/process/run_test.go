@@ -31,10 +31,18 @@ func shellCommand(ctx context.Context, script string) (*exec.Cmd, error) {
 	return exec.CommandContext(ctx, "/bin/sh", "-c", script), nil
 }
 
+// failScript runs a failing command that writes diagnostics to stderr.
+func failScript(line string) string {
+	if runtime.GOOS == "windows" {
+		return "echo " + line + " 1>&2 & exit 1"
+	}
+	return "echo '" + line + "' >&2; exit 1"
+}
+
 func TestRunClassifiesStderrOfFailedProcess(t *testing.T) {
 	decoder := &fakeDecoder{}
 	_, err := Run(context.Background(), func(ctx context.Context) (*exec.Cmd, error) {
-		return shellCommand(ctx, "echo 'the requested model is not supported' >&2; exit 1")
+		return shellCommand(ctx, failScript("the requested model is not supported"))
 	}, "prompt", decoder)
 	if !errors.Is(err, ErrProcess) {
 		t.Fatalf("expected ErrProcess, got %v", err)
@@ -47,7 +55,7 @@ func TestRunKeepsDecodedFailureWhenItIsSpecific(t *testing.T) {
 		err:    errors.New("incomplete"),
 	}
 	result, err := Run(context.Background(), func(ctx context.Context) (*exec.Cmd, error) {
-		return shellCommand(ctx, "echo 'rate limit' >&2; exit 0")
+		return shellCommand(ctx, failScript("rate limit"))
 	}, "prompt", decoder)
 	if !errors.Is(err, ErrProtocol) {
 		t.Fatalf("expected ErrProtocol, got %v", err)
@@ -60,7 +68,7 @@ func TestRunKeepsDecodedFailureWhenItIsSpecific(t *testing.T) {
 func TestRunClassifiesStderrWhenDecoderHasNoFailure(t *testing.T) {
 	decoder := &fakeDecoder{result: providers.RunResult{Failure: model.Failure{Kind: model.FailureUnknown}}}
 	result, err := Run(context.Background(), func(ctx context.Context) (*exec.Cmd, error) {
-		return shellCommand(ctx, "echo \"The 'gpt-5' model is not supported when using Codex with a ChatGPT account.\" >&2; exit 1")
+		return shellCommand(ctx, failScript("The gpt-5 model is not supported when using Codex with a ChatGPT account."))
 	}, "prompt", decoder)
 	if !errors.Is(err, ErrProcess) {
 		t.Fatalf("expected ErrProcess, got %v", err)
